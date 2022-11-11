@@ -2,7 +2,7 @@ getAccessionsCropUI <- function(id){
   ns <- NS(id)
   tagList(
     selectInput(ns("crop"), "Select a crop", c("Crop" = "", crops[2])),
-    selectInput(ns("ori"), "Select country(ies)", multiple = T, choices = c("Countries" = "", countries[1]), selected = ""),
+    selectInput(ns("ori"), "Select country(ies)", multiple = TRUE, choices = c("Countries" = "", countries[1]), selected = ""),
     checkboxInput(ns("coor"), "coordinates", value = TRUE),
     checkboxInput(ns("doi"), "DOI", value = FALSE),
     checkboxInput(ns("taxon"), "Taxon", value = FALSE),
@@ -44,12 +44,12 @@ getAccessionsCropMod <- function(input, output, session, rv){
       df[["AVAIL_SYR"]] <- factor(df[["AVAIL_SYR"]])
     }
     
-    # if(collectionYear){
-    #   df[["CollectionYear"]] <- factor(df[["CollectionYear"]])
-    # }
+    if(collectionYear){
+      df[["CollectionYear"]] <- as.integer(df[["CollectionYear"]])
+    }
     
     df
   })
-  print("data extracted...")
+  
   return(datasetInputCrop)
   }
