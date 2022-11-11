@@ -1,0 +1,8 @@
+WorldClim_2.5/
+*.zip
+*.rar
+*.csv
+*.png
+required_packages.R
+.RData
+.Rhistory

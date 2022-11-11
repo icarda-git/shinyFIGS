@@ -1,0 +1,8 @@
+---
+  title: "getTraits"
+  output: html_document
+---
+  
+  
+  Get traits for the crop selected in the accessions extraction module:
+  

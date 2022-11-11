@@ -1,0 +1,75 @@
+.navbar-default .navbar-brand{
+    background-color: white !important;
+    color: black;
+
+}
+.navbar { 
+	background-color: white;
+	color: black;
+	font-weight: 600;
+	font-family: linux-libertine;
+}
+
+.navbar-nav > .active > a {
+color: #fff !important;
+background-color: #2d7436 !important;
+font-family: "Lato",sans-serif;
+font-size: 14px;
+}
+
+hr {
+    border: none;
+    height: 2px;
+    color: #ff8103; /* old IE */
+    background-color: #ff8103; /* Modern Browsers */
+}
+
+.btn{
+	 background-color: #2d7436;
+	 color: white;
+	 /*font-family: linux-libertine;*/
+	 font-weight: bold;
+}
+.btn:hover, .btn:focus {
+	background-color: #5da361;
+	color: black;
+}
+
+.irs-from, .irs-to, 
+.irs-bar,
+.irs-bar-edge,
+.irs-single,
+.irs-grid-pol 
+{
+  background: #ff8103;
+  border-color: #ED7506;
+  color: black;
+}
+
+#logo{
+height: 30px; 
+width: auto;
+}
+.picker, .picker:focus, .picker:hover{
+	color: black;
+	background-color: white;
+}
+.shiny-progress .bar {
+  background-color:#ff8103;
+  opacity:0.8;
+}
+
+.shiny-progress .progress {
+  height:7px;
+}
+
+.scroll {
+	/*overflow-y:scroll;*/
+	overflow: auto;
+	max-height: 100vh !important;
+	/*position:relative;*/
+}
+
+td[data-type="factor"] input {
+    width: 100px !important;
+}

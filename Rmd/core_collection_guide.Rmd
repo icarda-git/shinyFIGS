@@ -1,0 +1,7 @@
+---
+title: "core_collection_guide"
+output: html_document
+---
+
+
+##### **Note:** The classification used to get Core Collection is based on the *cluster* variable. Please apply k-means clustering before performing core collection.

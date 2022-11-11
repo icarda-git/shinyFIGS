@@ -1,0 +1,6 @@
+---
+title: "pca_guide"
+output: html_document
+---
+
+The PCA method used by default is **svd**.
