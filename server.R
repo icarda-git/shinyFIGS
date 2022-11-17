@@ -82,17 +82,37 @@ function(input, output, session) {
       DT::datatable(rv$datasetInput, options = list(pageLength = 10))
     }
   })
+  
+  # update filter dropdowns
+  # credit to @mikmart in https://github.com/rstudio/DT/pull/982
+  filterable_sets <- eventReactive(input$table_search_columns, {
+    if(input$dataSrc == 'byCrop'){
+    # Get separate filtered indices
+    fi <- Map(DT::doColumnSearch, rv$passportCrop, input$table_search_columns);
+  
+    # Find available rows after filtering
+    ai <- lapply(seq_along(fi), function(j) {Reduce(intersect, fi[-j])});
     
+    # Get the corresponding data
+    lapply(Map(`[`, rv$passportCrop, ai), function(x){
+      if (is.factor(x)) droplevels(x) else x
+    })
+    }
+  })
+  
+  # update the columns filters
+  proxy <- DT::dataTableProxy("table")
+  observeEvent(filterable_sets(), {
+    DT::updateFilters(proxy, filterable_sets())
+  })
+  
   observeEvent(input$table_rows_all,{
     if(input$dataSrc == 'byCrop'){
-      
       rv$datasetInput <- rv$passportCrop[input$table_rows_all,]
-      rv$datasetInput <- droplevels(rv$datasetInput)
-      print(levels(rv$datasetInput[['PopulationType']]))
       rv$datasetInput
     }
   })
-
+  
   rv$ycolumns <- reactive({
     names(rv$datasetInput)
   })

@@ -28,7 +28,7 @@ fluidPage(
                                        HTML('<hr>'),
                                        h4("Extract Accessions"),
                                        HTML('<hr>'),
-                                       radioButtons("dataSrc", "", selected = "byCrop", c("Get Accessions by Crop Name" = "byCrop", "Get Accessions by IG" = "byIG", "Upload External Data" = "extData"), inline = F),
+                                       radioButtons("dataSrc", "", selected = "byCrop", c("Get Accessions by Crop Name" = "byCrop", "Get Accessions by IG" = "byIG", "Upload External Data" = "extData"), inline = FALSE),
                                     ###### Extract Data based on crop ######
                                     conditionalPanel("input.dataSrc == 'byCrop'", 
                                                      getAccessionsCropUI("getAccessionsCrop"),
