@@ -256,3 +256,19 @@ create_buttons <- function(vars) {
     }
   )
 }
+
+#'Generate the dropdown list from variables for X axis
+#'
+#'
+x_axis_dd_list <- function(df, vars) {
+  lapply(
+    vars,
+    FUN = function(var) {
+      button <- list(
+        method = 'update',
+        args = list(list(x = list(df[[var]]))),
+        label = var
+      )
+    }
+  )
+}

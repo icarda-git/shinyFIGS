@@ -17,7 +17,7 @@ function(input, output, session) {
   
   shinyjs::disable("downloadAcc")
   
-  #Extract data from ICARDA by crop name
+  #Extract data from ICARDA DB by crop name
   datasetInputCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
   
   observeEvent(input$getAcc,{
@@ -135,11 +135,6 @@ function(input, output, session) {
     updateTabsetPanel(session, 'main', selected = 'accPlot')
   })
 
-  output$plotVar <- renderUI({
-    #req(rv$factNumCols)
-    selectInput("varPlotted", "Select a variable", choices = c("", rv$ycolumns()))
-  })
-
   output$map <- leaflet::renderLeaflet({
     req(rv$datasetInput)
     
@@ -150,37 +145,32 @@ function(input, output, session) {
 
     mapAccessions(df = rv$datasetInput, long = input$long, lat = input$lat, y = y)
   })
-    
-  ## Frequency tables of two vars
-  # ***********************************************************#
-  # bw <- icardaFIGSr::getAccessions("Bread Wheat", taxon=T)
-  # contingency_table <- table(bw$Taxon, bw$PopulationType)
-  # ggpubr::ggballoonplot(as.data.frame.matrix(contingency_table), fill = "value", color = "lightgray",
-  #                       +               size = 10, show.label = TRUE)+
-  #   +     ggpubr::gradient_fill(c("blue", "white", "red"))
-  #************************************************************#
   
   # Statistical plot of variables from dataset extracted by crop name
   output$plot <- plotly::renderPlotly({
-    #renderPlot({
-    chosenVarPlot <- isolate(input$varPlotted)
-    input$plotVarBtn
-    # if(is.numeric(rv$datasetInput[[chosenVarPlot]])){
-      plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[[chosenVarPlot]], name = chosenVarPlot, color = "#ff8103") %>% plotly::add_histogram() %>%
-        plotly::layout(margin = list(b = 100), xaxis = list(tickangle = 45))
-      
-      #hist(rv$datasetInput[[chosenVarPlot]], col = "#ff8103", border = "white", xlab = chosenVarPlot, main = NULL)
-    # }
-    # else if(is.factor(rv$datasetInput[[chosenVarPlot]]) | is.character(rv$datasetInput[[chosenVarPlot]])) {
-    #   
-    #   plotly::plot_ly(x = table(rv$datasetInput[[chosenVarPlot]]), y = table(rv$datasetInput[[chosenVarPlot]]), type='bar')
-    #   
-    #   par(mar = c(27, 4, 1, 0))
-    #   ylim <- c(0, 1.1*max(table(rv$datasetInput[[chosenVarPlot]])))
-    #     
-    #   xx <- barplot(table(rv$datasetInput[[chosenVarPlot]]), ylim = ylim, xlab = "", ylab = "", col = "#ff8103", border = "white", las = 2)
-    #   text(x = xx, y = table(rv$datasetInput[[chosenVarPlot]]), labels = table(rv$datasetInput[[chosenVarPlot]]), pos = 3, cex = 0.8, col = "black")
-    # }
+    vars_plotted <- c('Country','PopulationType','Taxon','CollectionYear')
+    vars_plotted <- append(vars_plotted, search4pattern('avail',colnames(rv$datasetInput)))
+    
+    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[['Country']], color = "#ff8103") %>%
+        plotly::add_histogram() %>%
+        plotly::layout(annotations = list(
+          list(
+            text = "<b>Select variable:</b>", x=0.08, y=1.134, xref='paper', yref='paper',xanchor = "left", showarrow=FALSE)
+        ),
+        updatemenus = list(
+          list(
+            xref = 'paper',
+            yref = 'paper',
+            yanchor = 'top',
+            type = 'dropdown',
+            active = 0,
+            x = 0.25,
+            xanchor = "left",
+            y = 1.15,
+            buttons = x_axis_dd_list(rv$datasetInput, vars_plotted)
+          )
+        ),
+          margin = list(b = 100), xaxis = list(tickangle = 45))
   })
   
   output$downloadAcc <- downloadHandler(
@@ -188,7 +178,7 @@ function(input, output, session) {
       paste0("Accessions",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(rv$datasetInput, file, row.names = F)
+      write.csv(rv$datasetInput, file, row.names = FALSE)
     }
   )
   ########################################################
@@ -670,10 +660,12 @@ function(input, output, session) {
       withProgress(message = "Getting Traits Data ...", {
         traitId <- rv$traits[rv$traits$Trait == input$traitName, 'ID']
         traitsData <- icardaFIGSr::getTraitsData(IG = rv$datasetInput[[input$IG.Trait]], traitID = as.numeric(traitId))
-        print(traitId)
+       
         rv$traitsData <- traitsData %>% mutate_at(input$IG.Trait, funs(round(., 2)))
         rv$traitsData[['YEAR']] = as.factor(rv$traitsData[['YEAR']])
-        if(!is.na(rv$traits[rv$traits$ID == as.numeric(traitId), 'Options'])){
+        
+        if(!is.na(subset(rv$traits, ID==as.numeric(traitId))$Options)){
+        #if(!is.na(rv$traits[rv$traits$ID == as.numeric(traitId), 'Options'])){
           last_column = colnames(rv$traitsData)[length(colnames(rv$traitsData))]
           rv$traitsData[[last_column]] = factor(rv$traitsData[[last_column]])
         }
