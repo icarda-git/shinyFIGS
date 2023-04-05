@@ -17,6 +17,50 @@ function(input, output, session) {
   
   shinyjs::disable("downloadAcc")
   
+  # create map
+  output$map <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  output$WCMap <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  output$subsetMap <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  output$mapcluster <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  output$geoMap <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  output$coreMap <- renderLeaflet(
+    leaflet() %>%
+      setView(0, 0, zoom = 2) %>%
+      addProviderTiles('Esri.WorldGrayCanvas')
+  )
+  
+  map <- leafletProxy("map")
+  WCMap <- leafletProxy("WCMap")
+  subsetMap <- leafletProxy("subsetMap")
+  mapcluster <- leafletProxy("mapcluster")
+  geoMap <- leafletProxy("geoMap")
+  coreMap <- leafletProxy("coreMap")
+  
   #Extract data from ICARDA DB by crop name
   datasetInputCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
   
@@ -79,7 +123,7 @@ function(input, output, session) {
         rv$datasetInput <- dataUpload()
       }
         
-      DT::datatable(rv$datasetInput, options = list(pageLength = 10))
+      DT::datatable(rv$datasetInput, options = list(pageLength = 10, autoWidth = TRUE))
     }
   })
   
@@ -116,34 +160,38 @@ function(input, output, session) {
   rv$ycolumns <- reactive({
     names(rv$datasetInput)
   })
-    
-  output$targetVar <- renderUI({
-    req(rv$ycolumns())
-    coordTarget <- list(
-      selectInput("long", "Select Longitude", c("", rv$ycolumns())),
-      selectInput("lat", "Select Latitude", c("", rv$ycolumns())),
-      selectInput("y", "Select the target variable to be mapped", choices = c("", rv$ycolumns()))
-    )
-    do.call(tagList, coordTarget)
+  
+  output$selectUI_1 <- renderUI({
+    freezeReactiveValue(input, "y")
+    selectInput("y", "Select a variable", choices = c("None", rv$ycolumns()))
   })
-    
-  observeEvent(input$showMap,{
-    updateTabsetPanel(session, 'main', selected = 'accMap')
-  })
-
-  observeEvent(input$plotVarBtn,{
-    updateTabsetPanel(session, 'main', selected = 'accPlot')
-  })
-
-  output$map <- leaflet::renderLeaflet({
-    req(rv$datasetInput)
-    
-    y <- isolate(input$y)
-    if (input$showMap == 0 || y == "") {
-      y <- NULL
+  
+  output$coords <- renderUI({
+    if(input$dataSrc == "extData"){
+      coord <- list(
+        selectInput("long", "Select longitude column", c("", rv$ycolumns())),
+        selectInput("lat", "Select latitude column", c("", rv$ycolumns()))
+      )
+      do.call(tagList, coord)
     }
-
-    mapAccessions(df = rv$datasetInput, long = input$long, lat = input$lat, y = y)
+  })
+  
+  observe({
+    if(input$dataSrc=="extData"){
+      rv$lng <- input$long
+      rv$lat <- input$lat
+    }
+    else{
+      rv$lng <- "Longitude"
+      rv$lat <- "Latitude"
+    }
+  })
+  
+  observe({
+    req(rv$datasetInput, input$y, rv$lng, rv$lat)
+    y <- input$y
+    
+    mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = y)
   })
   
   # Statistical plot of variables from dataset extracted by crop name
@@ -155,7 +203,7 @@ function(input, output, session) {
         plotly::add_histogram() %>%
         plotly::layout(annotations = list(
           list(
-            text = "<b>Select variable:</b>", x=0.08, y=1.134, xref='paper', yref='paper',xanchor = "left", showarrow=FALSE)
+            text = "<b>Select a variable:</b>", x=0.08, y=1.134, xref='paper', yref='paper',xanchor = "left", showarrow=FALSE)
         ),
         updatemenus = list(
           list(
@@ -175,46 +223,38 @@ function(input, output, session) {
   
   output$downloadAcc <- downloadHandler(
     filename = function() {
-      paste0("Accessions",".csv", sep = "")
+      paste0("passport_data",".csv", sep = "")
     },
     content = function(file) {
       write.csv(rv$datasetInput, file, row.names = FALSE)
     }
   )
+  
   ########################################################
   ############  Extracting World Clim Data   #############
   ########################################################
   
-  rv$WCdata <- callModule(extractWCDataMod, "extractWCData", rv)
+  WCdata <- callModule(extractWCDataMod, "extractWCData", rv)
   
-  observeEvent(rv$extractWC,{
+  observeEvent(input$extractWC,{
+    freezeReactiveValue(rv, "dfSub")
+    rv$WCdata <- WCdata()
     updateTabsetPanel(session, "wcMainPanel", selected = "WCTable")
   })
   
-  output$clVarPlot <- renderUI({
-    climateVars <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(rv$WCdata()))
-    req(climateVars)
-    clVarInputBtn <- list(
-      selectInput("clVar", "Select the climate variable to be mapped", choices = c("", climateVars)),
-      actionButton("mapClVar", "Map")
-    )
-    do.call(tagList, clVarInputBtn)
-  })
-  
-  observeEvent(input$mapClVar,{
-    updateTabsetPanel(session, "wcMainPanel", selected = "WCMap")
-  })
-               
-  output$WCMap <- leaflet::renderLeaflet({
-    ## get climate variable
-    clVar <- isolate(input$clVar)
-    input$mapClVar
-      
-    mapAccessions(df = rv$WCdata(), long = rv$lng, lat = rv$lat, y = clVar)
+  output$selectUI_2 <- renderUI({
+    rv$climateVars <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(rv$WCdata))
+    freezeReactiveValue(input, "clim_var")
+    selectInput("clim_var", "Select a variable", choices = c("None",rv$climateVars), selected="None")
   })
   
   output$WCtable <- DT::renderDataTable({
-    DT::datatable(rv$WCdata(), options = list(pageLength = 10))
+    DT::datatable(rv$WCdata, rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
+  })
+  
+  observe({
+    req(rv$lng, rv$lat, rv$WCdata, input$clim_var)
+    mapAccessions(WCMap, df = rv$WCdata, long = rv$lng, lat = rv$lat, y = input$clim_var)
   })
   
   output$downloadWCData <- downloadHandler(
@@ -222,11 +262,11 @@ function(input, output, session) {
       paste0("WorldClimData",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(rv$WCdata(), file, row.names = F)}
+      write.csv(rv$WCdata, file, row.names = F)}
   )
 
   observe({
-    rv$WCDataNames <- names(rv$WCdata())
+    rv$WCDataNames <- names(rv$WCdata)
     rv$worldClimVar <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), rv$WCDataNames)
   })
   
@@ -247,8 +287,8 @@ function(input, output, session) {
       sliders <- lapply(1:length(rv$climVarSub), function(i) {
         
         inputName <- rv$climVarSub[i]
-        min <- min(rv$WCdata()[[inputName]], na.rm = T)
-        max <- max(rv$WCdata()[[inputName]], na.rm = T)
+        min <- min(rv$WCdata[[inputName]], na.rm = T)
+        max <- max(rv$WCdata[[inputName]], na.rm = T)
         
         list(
           sliderInput(inputName, inputName, min = min, max = max, value = c(min,max))
@@ -262,7 +302,6 @@ function(input, output, session) {
         printname <- paste("sumClimVar", i, sep = "")
         plotname <- paste("histo", i, sep = "")
         list(verbatimTextOutput(printname),
-             #plotOutput(plotname, height = 300)
              plotly::plotlyOutput(plotname, height = 300)
         )
       })
@@ -290,12 +329,12 @@ function(input, output, session) {
             inputVari <- rv$climVarSub[i]
             
             ### defining the subsetting condition "subsettingCnd"
-            subsettingCnd <- paste0(subsettingCnd,"(rv$WCdata()$", inputVari, " >= input$", inputVari,"[1]", ") & (rv$WCdata()$", inputVari, " <= input$", inputVari,"[2]) & !is.na(rv$WCdata()$",inputVari,") & ")
+            subsettingCnd <- paste0(subsettingCnd,"(rv$WCdata$", inputVari, " >= input$", inputVari,"[1]", ") & (rv$WCdata$", inputVari, " <= input$", inputVari,"[2]) & !is.na(rv$WCdata$",inputVari,") & ")
           }
           lastVar <- rv$climVarSub[length(rv$climVarSub)]
-          subsettingCnd <- paste0(subsettingCnd, "(rv$WCdata()$", lastVar, " >= input$", lastVar,"[1]", ") & (rv$WCdata()$", lastVar, " <= input$", lastVar,"[2]) & !is.na(rv$WCdata()$",lastVar,")")
+          subsettingCnd <- paste0(subsettingCnd, "(rv$WCdata$", lastVar, " >= input$", lastVar,"[1]", ") & (rv$WCdata$", lastVar, " <= input$", lastVar,"[2]) & !is.na(rv$WCdata$",lastVar,")")
           
-          rv$dfSub <- rv$WCdata()[eval(parse(text = subsettingCnd)),]
+          rv$dfSub <- rv$WCdata[eval(parse(text = subsettingCnd)),]
           for(i in 1:length(rv$climVarSub)){
             
             newMin = min(rv$dfSub[[rv$climVarSub[i]]], na.rm = T)
@@ -322,10 +361,6 @@ function(input, output, session) {
       })
   })
   
-  observeEvent(input$mapSubBtn,{
-    updateTabsetPanel(session, 'subsetMain', selected = 'subsetMap') 
-  })
-  
   output$dataDescription <- renderUI({
     req(rv$climVarSub)
     verbatimTextOutput("rowsNumber") 
@@ -335,18 +370,18 @@ function(input, output, session) {
     print(paste("Number of accessions: ", nrow(rv$dfSub)))
   })
   
-  output$mapDlBtns <- renderUI({
+  output$MapDlBtns <- renderUI({
     req(rv$climVarSub)
-    mapDlBtns <- list(
-      actionButton("mapSubBtn", "Map Data"),
-      downloadButton("DataSubset", "Download")
-  )
-    do.call(tagList, mapDlBtns)
+    #MapDlBtns <- list(
+    #actionButton("mapSubBtn", "Map Data"),
+    downloadButton("DataSubset", "Download")
+    #)
+    #do.call(tagList, MapDlBtns)
   })
   
-  output$subsetMap <- leaflet::renderLeaflet({
-    req(input$mapSubBtn)
-    map_two_dfs(rv$WCdata(), rv$dfSub, lng = rv$lng, lat = rv$lat, type = "Data Subset")
+  observe({
+    req(rv$lng, rv$lat, rv$WCdata, rv$dfSub)
+    map_two_dfs(subsetMap, rv$WCdata, rv$dfSub, lng = rv$lng, lat = rv$lat, type = "Data Subset")
   })
   
   output$DataSubset <- downloadHandler(
@@ -368,7 +403,7 @@ function(input, output, session) {
   observeEvent(input$kmeansBtn, {
     
     if(input$kmDataSrc == "allDataKm"){
-      rv$data4cluster <- rv$WCdata()
+      rv$data4cluster <- rv$WCdata
     }
     else if (input$kmDataSrc == "filtDataKm"){
       rv$data4cluster <- rv$dfSub
@@ -394,25 +429,28 @@ function(input, output, session) {
       req(rv$clusterRes)
       paste("tot.withinss: ", rv$clusterRes[[1]]$tot.withinss," betweenss: ", rv$clusterRes[[1]]$betweenss)
     })
+  })
+  
+  observe({
+    #output$mapcluster <- leaflet::renderLeaflet({
+    req(rv$lng, rv$lat, rv$clusterRes)
+    pal <- leaflet::colorFactor(
+      palette = "viridis",
+      domain = rv$clusterRes[[2]]$cluster
+    )
     
-    output$mapcluster <- leaflet::renderLeaflet({
-      req(rv$clusterRes)
-      pal <- leaflet::colorFactor(
-        palette = "viridis",
-        domain = rv$clusterRes[[2]]$cluster
-      )
-      
-      leaflet::leaflet(data = rv$clusterRes[[2]]) %>% leaflet::addTiles() %>%
-        leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
-        leaflet::addCircleMarkers(lng = cluster.res()[[2]][[rv$lng]], lat = rv$clusterRes[[2]][[rv$lat]],
-                                  color = ~pal(cluster),
-                                  radius = 2,
-                                  fill = TRUE,
-                                  fillColor = ~pal(cluster),
-                                  label = ~cluster,
-                                  fillOpacity = 1, weight = 0.1) %>%
-        leaflet::addLegend(pal = pal, values = ~cluster, opacity = 1,  title = 'Cluster')
-    })
+    mapcluster %>% clearMarkers() %>%
+      clearControls() %>% removeLayersControl() %>%
+      leaflet::addCircleMarkers(data = rv$clusterRes[[2]],
+                                lng = rv$clusterRes[[2]][[rv$lng]],
+                                lat = rv$clusterRes[[2]][[rv$lat]],
+                                color = ~pal(rv$clusterRes[[2]][["cluster"]]),
+                                radius = 2,
+                                fill = TRUE,
+                                fillColor = ~pal(rv$clusterRes[[2]][["cluster"]]),
+                                label = ~rv$clusterRes[[2]][["cluster"]],
+                                fillOpacity = 1, weight = 0.1) %>%
+      leaflet::addLegend(pal = pal, values = rv$clusterRes[[2]][["cluster"]], opacity = 1,  title = 'Cluster')
   })
   
   output$downloadClusterData <- downloadHandler(
@@ -431,20 +469,10 @@ function(input, output, session) {
   observe({
     shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = rv$worldClimVar)
   })
-  # observe({
-  #   if(input$pcaDataSrc == "allDataPca"){
-  #     rv$data4pca <- rv$WCdata()
-  #     rv$filteredPca <- FALSE
-  #   }
-  #   else if (input$pcaDataSrc == "filtDataPca"){
-  #     rv$data4pca <- rv$dfSub
-  #     rv$filteredPca <- TRUE
-  #   }
-  # })
   
   observeEvent(input$PCAsummary, {
     if(input$pcaDataSrc == "allDataPca"){
-      rv$data4pca <- rv$WCdata()
+      rv$data4pca <- rv$WCdata
       rv$filteredPca <- FALSE
     }
     else if (input$pcaDataSrc == "filtDataPca"){
@@ -452,19 +480,14 @@ function(input, output, session) {
       rv$filteredPca <- TRUE
     }
     rv$pca_var <- input$pca_var
-    #req(varSel, rv$data4pca)
     pcSummary <- callModule(pcaSummaryMod, "pcaSummary", rv)
     rv$pcaSummary <- pcSummary()
     rv$pcScores <- as.data.frame(rv$pcaSummary@scores)
     updateTabsetPanel(session, 'pca', selected = 'pcaSummary')
   })
-    
-  observeEvent(input$PCAPlotButton,{
+
+  observeEvent(input$PCAPlotButton, {
     updateTabsetPanel(session, 'pca', selected = 'pcaPlot') 
-  })
-    
-  observeEvent(input$geoPlotButton,{
-    updateTabsetPanel(session, 'pca', selected = 'geoMap') 
   })
     
   output$summaryPca <- renderPrint({
@@ -483,12 +506,6 @@ function(input, output, session) {
       plotly::layout(xaxis = list(title = list(text ='Components')), yaxis = list(title = list(text ='Cumulative Explained Variance')))
     # plot(rv$pcaSummary, col = "#ff8103", border = "white")
   })
-  
-  #pcaPlot <- callModule(pcaPlotMod, "pcaPlot", rv)
-  
-  # observeEvent(input$PCAPlotButton, {
-  #   rv$pcaPlot <- pcaPlot()
-  # })
   
   observe({
     if(input$plotRadios == 'plain'){
@@ -547,7 +564,7 @@ function(input, output, session) {
         legend=list(title=list(text=input$pcaPlotVar)),
         hovermode='closest',
         dragmode= 'select',
-        plot_bgcolor='rgba(240,240,240, 0.95)',
+        plot_bgcolor='rgba(240,240,240,0.95)',
         xaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
         yaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
         xaxis2=axis,
@@ -562,32 +579,35 @@ function(input, output, session) {
     
   })
       
-  ## geographic plot of pca results
-  observe({
-    updateSelectInput(session, "pcaScore", label = "Choose Score", choices = names(rv$pcScores))
+  ##Mapping pca results
+  output$selectScore <- renderUI({
+    freezeReactiveValue(input, "pcaScore")
+    selectInput("pcaScore", "Select a score", choices = names(rv$pcScores))
   })
   
-  output$geoMap <- leaflet::renderLeaflet({
-    # req(input$pcaScore)
-    pcaScore <- isolate(input$pcaScore)
-    input$geoPlotButton
+  observe({
+    req(rv$lng, rv$lat, rv$completeData, rv$pcScores, input$pcaScore)
     
     pal <- leaflet::colorNumeric(
       palette = "viridis",
-      domain = rv$pcScores[[pcaScore]]
-      )
+      domain = rv$pcScores[[input$pcaScore]]
+    )
 
-    leaflet::leaflet(data = rv$completeData) %>% leaflet::addTiles() %>%
-      leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
-      leaflet::addCircleMarkers(lng = rv$completeData[[rv$lng]], lat = rv$completeData[[rv$lat]],
-                       color = ~pal(rv$pcScores[[pcaScore]]),
+    geoMap %>% clearMarkers() %>%
+      clearControls() %>% removeLayersControl() %>%
+      leaflet::addCircleMarkers(data = rv$completeData,
+                                lng = rv$completeData[[rv$lng]],
+                                lat = rv$completeData[[rv$lat]],
+                       color = ~pal(rv$pcScores[[input$pcaScore]]),
                        radius = 2,
                        fill = TRUE,
-                       fillColor = ~pal(rv$pcScores[[pcaScore]]),
-                       label = ~rv$pcScores[[pcaScore]],
+                       fillColor = ~pal(rv$pcScores[[input$pcaScore]]),
+                       label = ~rv$pcScores[[input$pcaScore]],
                        fillOpacity = 1, weight = 0.1) %>%
-      leaflet::addLegend(pal = pal, values = ~rv$pcScores[[pcaScore]], opacity = 1,  title = pcaScore)
-    
+      leaflet::addLegend(pal = pal,
+                         values = rv$pcScores[[input$pcaScore]],
+                         opacity = 1,
+                         title = input$pcaScore)
   })
   
   ##############################################################################
@@ -606,20 +626,17 @@ function(input, output, session) {
   })
     output$corePlot <- plotly::renderPlotly({
       req(rv$core)
-      # ylim <- c(0, 1.1*max(table(rv$core$cluster)))
-      # xx <- barplot(table(rv$core$cluster), ylim = ylim, xlab = 'Cluster', ylab = "Number of Accessions", col = "#ff8103", border = "white")
-      # 
-      # text(x = xx, y = table(rv$core$cluster), label = table(rv$core$cluster), pos = 3, cex = 0.8, col = "black")
       plotly::plot_ly(rv$core, x = ~cluster, color = "#ff8103") %>% plotly::add_histogram()
     })
     
     output$coreDataTable <- DT::renderDataTable({
       req(rv$core)
-      DT::datatable(rv$core, options = list(pageLength = 10))
+      DT::datatable(rv$core, options = list(pageLength = 10, scrollX = TRUE))
     })
     
-    output$coreMap <- leaflet::renderLeaflet({
-      map_two_dfs(rv$data4core, rv$core, lng = rv$lng, lat = rv$lat, type = "Core Data")
+    observe({
+      req(rv$lng, rv$lat, rv$data4core, rv$core)
+      map_two_dfs(coreMap, rv$data4core, rv$core, lng = rv$lng, lat = rv$lat, type = "Core Data")
     })
     
     output$coreDLbutton <- downloadHandler(
@@ -669,7 +686,6 @@ function(input, output, session) {
           last_column = colnames(rv$traitsData)[length(colnames(rv$traitsData))]
           rv$traitsData[[last_column]] = factor(rv$traitsData[[last_column]])
         }
-        
       })
       updateTabsetPanel(session, 'traitMainPanel', selected = 'traitDataTable')
     })
@@ -688,7 +704,8 @@ function(input, output, session) {
                     extensions = 'Buttons',
                     options = list(dom = "Bfrtip",
                                    pageLength = 10,
-                                   buttons = c('csv', 'excel')))
+                                   buttons = c('csv', 'excel'),
+                                   scrollX = TRUE))
     })
     
     output$TraitDataSum <- DT::renderDataTable(server = FALSE, {
@@ -710,7 +727,8 @@ function(input, output, session) {
         DT::datatable(rv$traitSummary,
                       filter = list(position = "top", clear = FALSE),
                       extensions = 'Buttons',
-                      options = list(dom = "Bfrtip",
+                      options = list(scrollX = TRUE,
+                                     dom = "Bfrtip",
                                      pageLength = 10,
                                      buttons = c('csv', 'excel'),
                                      columnDefs = list(list(targets = 1, searchable = FALSE))))
@@ -801,8 +819,9 @@ function(input, output, session) {
     })
     
     #map traits summary
+    #observe({
     output$traitMap <- leaflet::renderLeaflet({
-      
+      #req(rv$traitSummary, rv$isTraitNum)
       filtered.traits.sum <- rv$traitSummary[input$TraitDataSum_rows_all,]
       
       #merge rv$datasetInput and rv$traitSummary on IG
@@ -822,18 +841,15 @@ function(input, output, session) {
         )
       }
       
-      
       leaflet::leaflet(data = trait.coordinates) %>% 
         leaflet::addTiles() %>%
-        leaflet::addProviderTiles('Esri.WorldTopoMap')  %>%
+        leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
         leaflet::addCircleMarkers(lng = ~Longitude, lat = ~Latitude,
                                   color = "black",
                                   radius = 3,
                                   fillColor = ~pal(trait.coordinates[[rv$field.name]]),
                                   label = ~trait.coordinates[[rv$field.name]],
                                   fillOpacity = 0.7, stroke = TRUE, weight = 0.3) %>%
-        leaflet::addLegend(pal = pal, values = ~trait.coordinates[[rv$field.name]], opacity = 1,  title = rv$traitName) 
-      
+        leaflet::addLegend(pal = pal, values = ~trait.coordinates[[rv$field.name]], opacity = 1,  title = rv$traitName)
     })
-    
 }

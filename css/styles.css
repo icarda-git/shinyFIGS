@@ -73,3 +73,12 @@ width: auto;
 td[data-type="factor"] input {
     width: 100px !important;
 }
+
+#map, #WCMap, #subsetMap, #mapcluster, #geoMap, #coreMap, #traitMap{
+  height: calc(100vh - 130px) !important;
+}
+@media only screen and (min-width: 768px) {
+    #map, #WCMap{
+    height: calc(100vh - 80px) !important;
+    }
+}

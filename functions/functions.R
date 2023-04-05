@@ -125,11 +125,11 @@ extractWCdata <- function(sites, long, lat, var, res = 2.5){
 #'
 #'
 
-mapAccessions <- function(df, long, lat, y = NULL){
+mapAccessions <- function(map, df, long, lat, y){
   
-  if(is.null(y)) {
-    leaflet::leaflet() %>% leaflet::addTiles() %>% 
-      leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
+  if(y == "None"){
+    leaflet_map <- map %>% clearMarkers() %>%
+      clearControls() %>% removeLayersControl() %>%
       leaflet::addCircleMarkers(data = df, lng = df[[long]], lat = df[[lat]],
                        color = "#2d7436",
                        radius = 1.5,
@@ -139,8 +139,8 @@ mapAccessions <- function(df, long, lat, y = NULL){
   }
   else {
     ## omit NAs in y column
-    df.na.omit <- df[!is.na(df[[y]]), ] 
-    
+    df.na.omit <- df[!is.na(df[[y]]), ]
+
     if (is.numeric(df[[y]])){
       pal <- leaflet::colorNumeric(
         palette = c("viridis"),
@@ -155,29 +155,33 @@ mapAccessions <- function(df, long, lat, y = NULL){
         na.color = "#808080"
       )
     }
-      
-      leaflet::leaflet() %>% leaflet::addTiles() %>% 
-        leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
-        leaflet::addCircleMarkers(data = df.na.omit, lng = df.na.omit[[long]], lat = df.na.omit[[lat]],
-                                  color = "black",
-                                  radius = 1.5,
-                                  fill = TRUE,
-                                  fillColor = ~pal(df.na.omit[[y]]),
-                                  label = ~df.na.omit[[y]],
-                                  stroke = TRUE,
-                                  fillOpacity = 1, weight = 0.1, group = "withoutNAs") %>%
-        leaflet::addCircleMarkers(data = df, lng = df[[long]], lat = df[[lat]],
-                         color = "black",
-                         radius = 1.5,
-                         fill = TRUE,
-                         fillColor = ~pal(df[[y]]),
-                         label = ~df[[y]],
-                         fillOpacity = 1, stroke = TRUE, weight = 0.1, group = "withNAs") %>%
-        leaflet::addLegend("bottomright", pal = pal, values = df[[y]], opacity = 1,  title = y) %>%
-        addLayersControl(baseGroups = c("withNAs","withoutNAs"),
-                         options = layersControlOptions(collapsed = FALSE))
-      
-    }
+    
+    leaflet_map <- map %>% clearMarkers() %>%
+      clearControls() %>% removeLayersControl() %>%
+      leaflet::addCircleMarkers(data = df.na.omit,
+                                lng = df.na.omit[[long]],
+                                lat = df.na.omit[[lat]],
+                                color = "black",
+                                radius = 1.5,
+                                fill = TRUE,
+                                fillColor = ~pal(df.na.omit[[y]]),
+                                label = ~df.na.omit[[y]],
+                                stroke = TRUE,
+                                fillOpacity = 1,
+                                weight = 0.1,
+                                group = "withoutNAs") %>%
+      leaflet::addCircleMarkers(data = df, lng = df[[long]], lat = df[[lat]],
+                                color = "black",
+                                radius = 1.5,
+                                fill = TRUE,
+                                fillColor = ~pal(df[[y]]),
+                                label = ~df[[y]],
+                                fillOpacity = 1, stroke = TRUE, weight = 0.1, group = "withNAs") %>%
+      leaflet::addLegend("bottomright", pal = pal, values = df[[y]], opacity = 1,  title = y) %>%
+      addLayersControl(baseGroups = c("withNAs","withoutNAs"),
+                       options = layersControlOptions(collapsed = FALSE))
+  }
+  leaflet_map
 }
 
 #' this function gets the country ISO3 code giving the country name
@@ -207,27 +211,26 @@ search4pattern <- function(pattern, obj){
 #'
 #'
 
-map_two_dfs <- function(df1, df2, lng, lat, type){
-  
+map_two_dfs <- function(map, df1, df2, lng, lat, type){
   df1$Aggregated <- "Overall Data"
   df2$Aggregated <- type
   d <- rbind(df1, df2)
   
   pal <- leaflet::colorFactor(c("#2d7436", "#ED7506"), domain = c("Overall Data", type))
-  
-  leaflet::leaflet(data = d) %>% leaflet::addTiles() %>% 
-    leaflet::addProviderTiles('Esri.WorldGrayCanvas')  %>%
-    leaflet::addCircleMarkers(lng = d[[lng]], lat = d[[lat]],
+
+  map %>% clearMarkers() %>%
+    clearControls() %>% removeLayersControl() %>%
+    leaflet::addCircleMarkers(data = d, lng = d[[lng]], lat = d[[lat]],
                      radius = 2,
-                     color = ~pal(Aggregated),
+                     color = ~pal(d[["Aggregated"]]),
                      fill = TRUE,
-                     fillColor = ~pal(Aggregated),
-                     label = ~Aggregated,
+                     fillColor = ~pal(d[["Aggregated"]]),
+                     label = ~d[["Aggregated"]],
                      fillOpacity = 1, stroke = TRUE, weight = 0.1) %>% 
-    leaflet::addLegend(pal = pal, values = ~Aggregated, opacity = 1,  title = '')
+    leaflet::addLegend(pal = pal, values = d[["Aggregated"]], opacity = 1,  title = '')
 }
 
-#' get the value that have maximun occurences in a vector, or choose a value randomly if occurences are equivalent
+#' get the value that has maximun occurences in a vector, or choose a value randomly if occurences are equivalent
 #'
 #'
 #'
