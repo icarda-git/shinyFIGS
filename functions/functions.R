@@ -215,19 +215,30 @@ map_two_dfs <- function(map, df1, df2, lng, lat, type){
   df1$Aggregated <- "Overall Data"
   df2$Aggregated <- type
   d <- rbind(df1, df2)
+  d_overall <- subset(d, Aggregated == "Overall Data")
+  d_subset <- subset(d, Aggregated == type)
   
   pal <- leaflet::colorFactor(c("#2d7436", "#ED7506"), domain = c("Overall Data", type))
-
-  map %>% clearMarkers() %>%
-    clearControls() %>% removeLayersControl() %>%
-    leaflet::addCircleMarkers(data = d, lng = d[[lng]], lat = d[[lat]],
+  
+  map %>% leaflet::clearMarkers() %>%
+    leaflet::clearControls() %>% leaflet::removeLayersControl() %>%
+    leaflet::addMapPane(type, zIndex = 450) %>%
+    leaflet::addMapPane("Overall Data", zIndex = 410) %>%
+    leaflet::addCircleMarkers(data = d_overall, lng = d_overall[[lng]], lat = d_overall[[lat]],
                      radius = 2,
-                     color = ~pal(d[["Aggregated"]]),
+                     color = "black",
                      fill = TRUE,
-                     fillColor = ~pal(d[["Aggregated"]]),
-                     label = ~d[["Aggregated"]],
-                     fillOpacity = 1, stroke = TRUE, weight = 0.1) %>% 
-    leaflet::addLegend(pal = pal, values = d[["Aggregated"]], opacity = 1,  title = '')
+                     fillColor = "#2d7436",
+                     fillOpacity = 0.8, stroke = TRUE, weight = 0.1, group = "Overall Data") %>% 
+      leaflet::addCircleMarkers(data = d_subset, lng = d_subset[[lng]], lat = d_subset[[lat]],
+                     radius = 2,
+                     color = "black",
+                     fillColor = "#ED7506",
+                     stroke = TRUE, fillOpacity = 0.8, weight = 0.1, group = type) %>%
+      leaflet::addLayersControl(overlayGroups = c("Overall Data", type),
+                     options = layersControlOptions(collapsed = FALSE)) 
+  # %>%
+  #   leaflet::addLegend(pal = pal, values = d[["Aggregated"]], opacity = 1,  title = '')
 }
 
 #' get the value that has maximun occurences in a vector, or choose a value randomly if occurences are equivalent
