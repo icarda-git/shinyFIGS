@@ -44,8 +44,8 @@ shinyUI(
                                                             ###### Extract Data based on crop ######
                                                             conditionalPanel("input.dataSrc == 'byCrop'",
                                                                              getAccessionsCropUI("getAccessionsCrop"),
-                                                                             actionButton("getAcc", "Get Accessions"),
-                                                                             width = 3),
+                                                                             actionButton("getAcc", "Get Accessions")
+                                                                             ),
                                                             ###### Extract Data based on IG ######
                                                             conditionalPanel("input.dataSrc == 'byIG'",
                                                                              uploadDataUI('uploadIGData'),
@@ -65,8 +65,8 @@ shinyUI(
                                                             HTML('<hr>'),
                                                             h4("Download Accessions (.csv)"),
                                                             HTML('<hr>'),
-                                                            downloadButton("downloadAcc", "Download")),
-                                               mainPanel(class = "scroll",
+                                                            downloadButton("downloadAcc", "Download"), width = 3),
+                                               mainPanel(
                                                          tabsetPanel(id = "main",
                                                                      tabPanel(value = "accResult",
                                                                               "Table",
@@ -81,7 +81,18 @@ shinyUI(
                                                                                             uiOutput('selectUI_1'))),
                                                                      tabPanel(value = "accPlot",
                                                                               "Plot",
-                                                                              plotly::plotlyOutput(outputId = "plot", height = 600))))),
+                                                                              plotly::plotlyOutput(outputId = "plot"),
+                                                                              absolutePanel(top = 50,
+                                                                                            left = 90,
+                                                                                            width = 400,
+                                                                                            draggable = TRUE,
+                                                                                            uiOutput('first_var')),
+                                                                              plotly::plotlyOutput(outputId = "bi_plot"),
+                                                                              absolutePanel(top = 450,
+                                                                                            left = 90,
+                                                                                            width = 400,
+                                                                                            draggable = TRUE,
+                                                                                            uiOutput('second_var')))), width = 9)),
                                       tabPanel("World Climatic Data",
                                                sidebarPanel(
                                                  extractWCDataUI("extractWCData"),

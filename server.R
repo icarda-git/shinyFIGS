@@ -61,6 +61,13 @@ function(input, output, session) {
   geoMap <- leafletProxy("geoMap")
   coreMap <- leafletProxy("coreMap")
   
+  observe({
+    if(input$dataSrc == 'extData')
+      hideTab(inputId = "main", target = "accPlot")
+    else
+      showTab(inputId = "main", target = "accPlot")
+  })
+  
   #Extract data from ICARDA DB by crop name
   datasetInputCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
   
@@ -107,7 +114,7 @@ function(input, output, session) {
     
     if(input$dataSrc == 'byCrop'){
       req(rv$passportCrop)
-      DT::datatable(rv$passportCrop, filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, autoWidth = TRUE), callback = DT::JS(" //hide column filters for specific columns
+      DT::datatable(rv$passportCrop, filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, scrollX = TRUE), callback = DT::JS(" //hide column filters for specific columns
       $.each([2, 5, 6, 7, 8], function(i, v) {
                                      $('input.form-control').eq(v).hide()
                                      });"))
@@ -123,7 +130,7 @@ function(input, output, session) {
         rv$datasetInput <- dataUpload()
       }
         
-      DT::datatable(rv$datasetInput, options = list(pageLength = 10, autoWidth = TRUE))
+      DT::datatable(rv$datasetInput, options = list(pageLength = 10, scrollX = TRUE))
     }
   })
   
@@ -195,30 +202,29 @@ function(input, output, session) {
   })
   
   # Statistical plot of variables from dataset extracted by crop name
+  output$first_var <- renderUI({
+    req(rv$ycolumns())
+    rv$vars_plotted <- c('Country','PopulationType','Taxon')
+    selectInput("var_plot", "Select a variable", choices = c(rv$vars_plotted))
+  })
+  
   output$plot <- plotly::renderPlotly({
-    vars_plotted <- c('Country','PopulationType','Taxon','CollectionYear')
-    vars_plotted <- append(vars_plotted, search4pattern('avail',colnames(rv$datasetInput)))
-    
-    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[['Country']], color = "#ff8103") %>%
-        plotly::add_histogram() %>%
-        plotly::layout(annotations = list(
-          list(
-            text = "<b>Select a variable:</b>", x=0.08, y=1.134, xref='paper', yref='paper',xanchor = "left", showarrow=FALSE)
-        ),
-        updatemenus = list(
-          list(
-            xref = 'paper',
-            yref = 'paper',
-            yanchor = 'top',
-            type = 'dropdown',
-            active = 0,
-            x = 0.25,
-            xanchor = "left",
-            y = 1.15,
-            buttons = x_axis_dd_list(rv$datasetInput, vars_plotted)
-          )
-        ),
-          margin = list(b = 100), xaxis = list(tickangle = 45))
+    req(rv$datasetInput)
+    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[[input$var_plot]], color = "#ff8103") %>%
+      plotly::add_histogram()
+  })
+  
+  output$second_var <- renderUI({
+    req(rv$ycolumns())
+    vars_plotted <- setdiff(rv$vars_plotted, c(input$var_plot))
+
+    selectInput("var2_plot", "Select a second variable", choices = c(vars_plotted))
+  })
+  
+  output$bi_plot <- plotly::renderPlotly({
+    req(rv$datasetInput)
+    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[[input$var_plot]], color = rv$datasetInput[[input$var2_plot]]) %>%
+      plotly::add_histogram() 
   })
   
   output$downloadAcc <- downloadHandler(
