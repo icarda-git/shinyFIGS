@@ -9,6 +9,7 @@ for (f in list.files('./modules')) {
   source(file.path('modules', f), local = TRUE)
 }
 
+crops <- getCrops()
 countries <- readRDS("data/countries.rds")
 
 function(input, output, session) {
@@ -115,7 +116,7 @@ function(input, output, session) {
     if(input$dataSrc == 'byCrop'){
       req(rv$passportCrop)
       DT::datatable(rv$passportCrop, filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, scrollX = TRUE), callback = DT::JS(" //hide column filters for specific columns
-      $.each([2, 5, 6, 7, 8], function(i, v) {
+      $.each([2, 3, 6, 7, 8, 9], function(i, v) {
                                      $('input.form-control').eq(v).hide()
                                      });"))
     }
@@ -659,7 +660,7 @@ function(input, output, session) {
     
     output$cropSelected <- renderUI({
       req(rv$crop)
-      verbatimTextOutput("selectedCrop") 
+      verbatimTextOutput("selectedCrop")
     })
     
     output$selectedCrop <- renderPrint({

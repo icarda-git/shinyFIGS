@@ -35,7 +35,6 @@ getAccessionsCropMod <- function(input, output, session, rv){
     if(available){
       df[["AVAIL_LBN"]] <- factor(df[["AVAIL_LBN"]])
       df[["AVAIL_MA"]] <- factor(df[["AVAIL_MA"]])
-      df[["AVAIL_SYR"]] <- factor(df[["AVAIL_SYR"]])
     }
     
     df
