@@ -160,8 +160,12 @@ function(input, output, session) {
   
   observeEvent(input$table_rows_all,{
     if(input$dataSrc == 'byCrop'){
+      rv$crop <- unique(rv$passportCrop[['Crop']])
       rv$datasetInput <- rv$passportCrop[input$table_rows_all,]
       rv$datasetInput
+    }
+    else if(input$dataSrc == 'byIG'){
+      rv$crop <- unique(rv$datasetInput[['Crop']])
     }
   })
   

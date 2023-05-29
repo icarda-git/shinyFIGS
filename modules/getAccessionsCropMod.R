@@ -15,7 +15,7 @@ getAccessionsCropMod <- function(input, output, session, rv){
   
     # getAccessions function parameters
     countryName <- input$ori
-    rv$crop <- input$crop
+    crop <- input$crop
     coor <- input$coor
     doi <- input$doi
     available <- input$avail
@@ -23,7 +23,7 @@ getAccessionsCropMod <- function(input, output, session, rv){
     
     # query ICARDA database
     withProgress(message = "Querying ICARDA DB ...", {
-      df <- icardaFIGSr::getAccessions(crop = rv$crop, ori = rv$countryCode, coor = coor, doi = doi, taxon = TRUE, collectionYear = TRUE, available = available)
+      df <- icardaFIGSr::getAccessions(crop = crop, ori = rv$countryCode, coor = coor, doi = doi, taxon = TRUE, collectionYear = TRUE, available = available)
     })
 
     df <- as.data.frame(df)
