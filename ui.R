@@ -57,6 +57,9 @@ shinyUI(
                                                                                          multiple = T,
                                                                                          choices = c("Countries" = "", countries[1]),
                                                                                          selected = ""),
+                                                                             checkboxInput("coor", "Coordinates", value = TRUE),
+                                                                             checkboxInput("doi", "DOI", value = FALSE),
+                                                                             checkboxInput("avail", "Availability", value = FALSE),
                                                                              actionButton("getAccIG", "Get Accessions")),
                                                             ###### Extract External Data ######
                                                             conditionalPanel("input.dataSrc == 'extData'",

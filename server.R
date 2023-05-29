@@ -91,7 +91,10 @@ function(input, output, session) {
     countryName <- input$oriIG
     countryCodeIG <- countryCode(countryName = countryName)
     withProgress(message = "Querying ICARDA DB ...", {
-    df <- icardaFIGSr::getAccessions(IG = dataIG()[[IG]], coor = TRUE, ori = countryCodeIG)
+    df <- icardaFIGSr::getAccessions(IG = dataIG()[[IG]], coor = input$coor,
+                                     ori = countryCodeIG, doi = input$doi,
+                                     available = input$avail, taxon = TRUE, 
+                                     collectionYear = TRUE)
     })
     df
   })
