@@ -286,3 +286,37 @@ x_axis_dd_list <- function(df, vars) {
     }
   )
 }
+
+make_sliders <- function(x, var) {
+    rng <- range(x, na.rm = TRUE)
+    sliderInput(var, var, min = floor(rng[1]), max = ceiling(rng[2]), 
+                value = c(floor(rng[1]),ceiling(rng[2])))
+}
+
+render_hists <- function(output, x, var){
+  plotname <- paste("histo", var, sep = "")
+  output[[plotname]] <- plotly::renderPlotly({
+    plotly::plot_ly(x, x = x[[var]], color = "#ff8103") %>% 
+    plotly::add_histogram() %>%
+    plotly::add_annotations(var, x = 0.5, y = 1, 
+      xref = "paper", yref = "paper", showarrow = FALSE)
+    })
+}
+
+render_prints <- function(output, x, var){
+  printname <- paste("sumClimVar", var, sep = "")
+  output[[printname]] <- renderPrint({
+    print(var)
+    summary(x[[var]])
+  })
+}
+
+filter_var <- function(x, val) {
+  !is.na(x) & x >= val[1] & x <= val[2]
+}
+
+update_slider <- function(session, x, var) {
+  newMin <- floor(min(x, na.rm = TRUE))
+  newMax <- ceiling(max(x, na.rm = TRUE))
+  updateSliderInput(session, inputId = var, value = c(newMin,newMax))
+}

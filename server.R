@@ -1,6 +1,19 @@
+#install required packages
+list_of_packages = c(c('shiny','dplyr','rmarkdown','shinyjs','DT',
+                       'ggplot2','leaflet','shinyWidgets',
+                       'BiocManager','httr','magrittr','plyr','plotly',
+                       'raster','sp','rgdal','readr','icardaFIGSr',
+                       'terra','purrr','shinydashboard'))
+
+lapply(list_of_packages,
+       function(x) if(!require(x,character.only = TRUE)) 
+                        install.packages(x, dependencies = TRUE))
+if(!require('pcaMethods',character.only = TRUE)) BiocManager::install('pcaMethods')
+
 library(shiny)
 library(dplyr)
 library(leaflet)
+library(purrr)
 
 
 source(file.path('./functions/functions.R'), local = TRUE)
@@ -8,6 +21,7 @@ source(file.path('./functions/functions.R'), local = TRUE)
 for (f in list.files('./modules')) {
   source(file.path('modules', f), local = TRUE)
 }
+
 
 crops <- getCrops()
 countries <- readRDS("data/countries.rds")
@@ -70,10 +84,13 @@ function(input, output, session) {
   })
   
   #Extract data from ICARDA DB by crop name
-  datasetInputCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
+  passportDataCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
+  
+  datasetInputCrop <- eventReactive(input$getAcc,{
+    passportDataCrop()
+  })
   
   observeEvent(input$getAcc,{
-    rv$passportCrop <- datasetInputCrop()
     updateTabsetPanel(session, 'main', selected = 'accResult')
     shinyjs::enable("downloadAcc")
   })
@@ -82,8 +99,8 @@ function(input, output, session) {
   dataIG <- callModule(uploadDataMod, "uploadIGData")
   
   observe({
-    columns <- names(dataIG())
-    updateSelectInput(session, "IG", label = "Select Identifier Column", choices = columns)
+    #columns <- names(dataIG())
+    updateSelectInput(session, "IG", label = "Select Identifier Column", choices = names(dataIG()))
   })
   
   datasetInputIG <- eventReactive(input$getAccIG, {
@@ -117,8 +134,8 @@ function(input, output, session) {
   output$table <- DT::renderDataTable({
     
     if(input$dataSrc == 'byCrop'){
-      req(rv$passportCrop)
-      DT::datatable(rv$passportCrop, filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, scrollX = TRUE), callback = DT::JS(" //hide column filters for specific columns
+      req(datasetInputCrop())
+      DT::datatable(datasetInputCrop(), filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, scrollX = TRUE), callback = DT::JS(" //hide column filters for specific columns
       $.each([2, 3, 6, 7, 8, 9], function(i, v) {
                                      $('input.form-control').eq(v).hide()
                                      });"))
@@ -143,13 +160,13 @@ function(input, output, session) {
   filterable_sets <- eventReactive(input$table_search_columns, {
     if(input$dataSrc == 'byCrop'){
     # Get separate filtered indices
-    fi <- Map(DT::doColumnSearch, rv$passportCrop, input$table_search_columns);
+    fi <- Map(DT::doColumnSearch, datasetInputCrop(), input$table_search_columns);
   
     # Find available rows after filtering
     ai <- lapply(seq_along(fi), function(j) {Reduce(intersect, fi[-j])});
     
     # Get the corresponding data
-    lapply(Map(`[`, rv$passportCrop, ai), function(x){
+    lapply(Map(`[`, datasetInputCrop(), ai), function(x){
       if (is.factor(x)) droplevels(x) else x
     })
     }
@@ -163,8 +180,8 @@ function(input, output, session) {
   
   observeEvent(input$table_rows_all,{
     if(input$dataSrc == 'byCrop'){
-      rv$crop <- unique(rv$passportCrop[['Crop']])
-      rv$datasetInput <- rv$passportCrop[input$table_rows_all,]
+      rv$crop <- unique(datasetInputCrop()[['Crop']])
+      rv$datasetInput <- datasetInputCrop()[input$table_rows_all,]
       rv$datasetInput
     }
     else if(input$dataSrc == 'byIG'){
@@ -172,20 +189,20 @@ function(input, output, session) {
     }
   })
   
-  rv$ycolumns <- reactive({
-    names(rv$datasetInput)
-  })
+  # rv$ycolumns <- reactive({
+  #   names(rv$datasetInput)
+  # })
   
   output$selectUI_1 <- renderUI({
     freezeReactiveValue(input, "y")
-    selectInput("y", "Select a variable", choices = c("None", rv$ycolumns()))
+    selectInput("y", "Select a variable", choices = c("None", names(rv$datasetInput)))
   })
   
   output$coords <- renderUI({
     if(input$dataSrc == "extData"){
       coord <- list(
-        selectInput("long", "Select longitude column", c("", rv$ycolumns())),
-        selectInput("lat", "Select latitude column", c("", rv$ycolumns()))
+        selectInput("long", "Select longitude column", c("", names(rv$datasetInput))),
+        selectInput("lat", "Select latitude column", c("", names(rv$datasetInput)))
       )
       do.call(tagList, coord)
     }
@@ -204,14 +221,13 @@ function(input, output, session) {
   
   observe({
     req(rv$datasetInput, input$y, rv$lng, rv$lat)
-    y <- input$y
-    
-    mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = y)
+    mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = input$y)
   })
   
   # Statistical plot of variables from dataset extracted by crop name
   output$first_var <- renderUI({
-    req(rv$ycolumns())
+    #req(rv$ycolumns())
+    req(rv$datasetInput)
     rv$vars_plotted <- c('Country','PopulationType','Taxon')
     selectInput("var_plot", "Select a variable", choices = c(rv$vars_plotted))
   })
@@ -223,7 +239,8 @@ function(input, output, session) {
   })
   
   output$second_var <- renderUI({
-    req(rv$ycolumns())
+    #req(rv$ycolumns())
+    req(rv$datasetInput)
     vars_plotted <- setdiff(rv$vars_plotted, c(input$var_plot))
 
     selectInput("var2_plot", "Select a second variable", choices = c(vars_plotted))
@@ -250,25 +267,30 @@ function(input, output, session) {
   
   WCdata <- callModule(extractWCDataMod, "extractWCData", rv)
   
-  observeEvent(input$extractWC,{
-    freezeReactiveValue(rv, "dfSub")
-    rv$WCdata <- WCdata()
+  climaticData <- eventReactive(input$extractWC,{
+    WCdata()
+  })
+  
+  observeEvent(input$extractWC, {
     updateTabsetPanel(session, "wcMainPanel", selected = "WCTable")
   })
   
+  climVars <- reactive({
+    search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(climaticData()))
+  })
+  
   output$selectUI_2 <- renderUI({
-    rv$climateVars <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(rv$WCdata))
-    freezeReactiveValue(input, "clim_var")
-    selectInput("clim_var", "Select a variable", choices = c("None",rv$climateVars), selected="None")
+    #rv$climateVars <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(climaticData()))
+    selectInput("clim_var", "Select a variable", choices = c("None",climVars()), selected="None")
   })
   
   output$WCtable <- DT::renderDataTable({
-    DT::datatable(rv$WCdata, rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
+    DT::datatable(climaticData(), rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
   })
   
   observe({
-    req(rv$lng, rv$lat, rv$WCdata, input$clim_var)
-    mapAccessions(WCMap, df = rv$WCdata, long = rv$lng, lat = rv$lat, y = input$clim_var)
+    req(rv$lng, rv$lat, climaticData(), input$clim_var)
+    mapAccessions(WCMap, df = climaticData(), long = rv$lng, lat = rv$lat, y = input$clim_var)
   })
   
   output$downloadWCData <- downloadHandler(
@@ -276,126 +298,88 @@ function(input, output, session) {
       paste0("WorldClimData",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(rv$WCdata, file, row.names = F)}
+      write.csv(climaticData(), file, row.names = F)}
   )
-
+  
   observe({
-    rv$WCDataNames <- names(rv$WCdata)
-    rv$worldClimVar <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), rv$WCDataNames)
+    #rv$WCDataNames <- names(climaticData())
+    updateSelectInput(session, "climVarSub", label = "Select Variables", choices = climVars())
+    shinyWidgets::updatePickerInput(session, "kmx", label = "Select Variables", choices = climVars())
+    shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = climVars())
   })
   
   ##############################################################################
   ###################  Climate Variables based Subsetting   ####################
   ############################################################################## 
   
-  climVarSub <- callModule(multiVarAnalysisMod, "multiVarAnalysis", rv)
-  observe({
-    rv$climVarSub <- climVarSub()
+  #climVarSub <- callModule(multiVarAnalysisMod, "multiVarAnalysis", climVars(), rv)
+  
+  climVarSub <- reactive({
+    input$climVarSub
   })
   
-  observeEvent(c(rv$slidersBtn, input$resetButton),{
-    updateTabsetPanel(session, "subsetMain", selected = "subSumHist")
-    req(rv$climVarSub)
-    output$sliders <- renderUI({
-      
-      sliders <- lapply(1:length(rv$climVarSub), function(i) {
-        
-        inputName <- rv$climVarSub[i]
-        min <- min(rv$WCdata[[inputName]], na.rm = T)
-        max <- max(rv$WCdata[[inputName]], na.rm = T)
-        
-        list(
-          sliderInput(inputName, inputName, min = min, max = max, value = c(min,max))
-        )
-      })
-      do.call(tagList, sliders)
-    })
+  output$sliders <- renderUI({
+    tagList(HTML("<div style ='overflow:auto; max-height:450px; height: auto;'>"),
+    map(climVarSub(), ~ make_sliders(climaticData()[[.x]], .x)), HTML("</div>"))
+  })
     
-    output$summaryandHists <- renderUI({
-      summariesandHists <- lapply(1:length(rv$climVarSub), function(i) {
-        printname <- paste("sumClimVar", i, sep = "")
-        plotname <- paste("histo", i, sep = "")
+  output$summaryandHists <- renderUI({
+      summariesandHists <- lapply(1:length(climVarSub()), function(i) {
+        printname <- paste("sumClimVar", climVarSub()[i], sep = "")
+        plotname <- paste("histo", climVarSub()[i], sep = "")
         list(verbatimTextOutput(printname),
              plotly::plotlyOutput(plotname, height = 300)
         )
       })
-      do.call(tagList, unlist(summariesandHists, recursive = F))
-    })
+      do.call(tagList, unlist(summariesandHists, recursive = FALSE))
   })
-  
-  observe({
-    req(rv$climVarSub)
+
+  selected_sub <- reactive({
+    each_var <- map(climVarSub(), ~ filter_var(climaticData()[[.x]], input[[.x]]))
+    reduce(each_var, `&`)
+  })
     
-    lapply(
-      X = 1:length(rv$climVarSub),
-      FUN = function(i){
-        
-        inputVar <- rv$climVarSub[i]
-        plotname <- paste("histo", i, sep = "")
-        printname <- paste("sumClimVar", i, sep = "")
-        
-        evalInVar <- input[[inputVar]]
-        req(evalInVar)
-        subsettingCnd <- ""
-        
-        observeEvent(input[[inputVar]], {
-          for(i in 1:(length(rv$climVarSub)-1)){
-            inputVari <- rv$climVarSub[i]
-            
-            ### defining the subsetting condition "subsettingCnd"
-            subsettingCnd <- paste0(subsettingCnd,"(rv$WCdata$", inputVari, " >= input$", inputVari,"[1]", ") & (rv$WCdata$", inputVari, " <= input$", inputVari,"[2]) & !is.na(rv$WCdata$",inputVari,") & ")
-          }
-          lastVar <- rv$climVarSub[length(rv$climVarSub)]
-          subsettingCnd <- paste0(subsettingCnd, "(rv$WCdata$", lastVar, " >= input$", lastVar,"[1]", ") & (rv$WCdata$", lastVar, " <= input$", lastVar,"[2]) & !is.na(rv$WCdata$",lastVar,")")
-          
-          rv$dfSub <- rv$WCdata[eval(parse(text = subsettingCnd)),]
-          for(i in 1:length(rv$climVarSub)){
-            
-            newMin = min(rv$dfSub[[rv$climVarSub[i]]], na.rm = T)
-            newMax = max(rv$dfSub[[rv$climVarSub[i]]], na.rm = T)
-            updateSliderInput(session, inputId = rv$climVarSub[i], value = c(newMin,newMax) )
-          }
-        })
-        output[[printname]] <- renderPrint({
-          print(inputVar)
-          summary(rv$dfSub[[inputVar]])
-        })
-        
-        output[[plotname]] <- plotly::renderPlotly({
-          plotly::plot_ly(rv$dfSub, x = rv$dfSub[[inputVar]], color = "#ff8103") %>% plotly::add_histogram() %>% plotly::add_annotations(
-            inputVar, x = 0.5, y = 1, 
-            xref = "paper", yref = "paper", showarrow = FALSE
-          )
-          #hist(rv$dfSub[[inputVar]], col = "#ff8103", border = "white", xlab = inputVar, main = NULL)
-        })
-        
-        # output[[plotname]] <- renderPlot({
-        #   hist(rv$dfSub[[inputVar]], col = "#ff8103", border = "white", xlab = inputVar, main = NULL)
-        # })
-      })
-  })
+    dfSub <- eventReactive(input$slidersButton, {
+      climaticData()[selected_sub(), ]
+    })
+    
+    observe({
+      if(is.null(climVarSub())){
+        removeUI(
+          selector = "#sliders > div", multiple = T
+        )
+      }
+      map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
+      map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
+    })
+    
+    observeEvent(input$slidersButton, {
+      map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
+      map(climVarSub(), ~ render_hists(output, dfSub(), .x))
+      map(climVarSub(), ~ render_prints(output, dfSub(), .x))
+      map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
+                  lat = rv$lat, type = "Data Subset")
+    })
+    
+    #reset to initial data
+    observeEvent(input$resetButton, {
+      map(climVarSub(), ~ update_slider(session, climaticData()[, .x], .x))
+      map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
+      map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
+    })
   
   output$dataDescription <- renderUI({
-    req(rv$climVarSub)
-    verbatimTextOutput("rowsNumber") 
+    req(dfSub())
+    verbatimTextOutput("rowsNumber")
   })
   
   output$rowsNumber <- renderPrint({
-    print(paste("Number of accessions: ", nrow(rv$dfSub)))
+    print(paste("Number of filtered accessions: ", nrow(dfSub())))
   })
   
   output$MapDlBtns <- renderUI({
-    req(rv$climVarSub)
-    #MapDlBtns <- list(
-    #actionButton("mapSubBtn", "Map Data"),
+    req(dfSub())
     downloadButton("DataSubset", "Download")
-    #)
-    #do.call(tagList, MapDlBtns)
-  })
-  
-  observe({
-    req(rv$lng, rv$lat, rv$WCdata, rv$dfSub)
-    map_two_dfs(subsetMap, rv$WCdata, rv$dfSub, lng = rv$lng, lat = rv$lat, type = "Data Subset")
   })
   
   output$DataSubset <- downloadHandler(
@@ -403,27 +387,27 @@ function(input, output, session) {
       paste0("WorldClimDataSubset",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(rv$dfSub, file, row.names = F)}
+      write.csv(dfSub(), file, row.names = F)}
   )
   
   ########################################################
   ################  K-Means Clustering   #################
   ########################################################
   
-  observe({
-    shinyWidgets::updatePickerInput(session, "kmx", label = "Select Variables", choices = rv$worldClimVar)
-  })
+  # observe({
+  #   shinyWidgets::updatePickerInput(session, "kmx", label = "Select Variables", choices = rv$worldClimVar)
+  # })
   
   observeEvent(input$kmeansBtn, {
     
     if(input$kmDataSrc == "allDataKm"){
-      rv$data4cluster <- rv$WCdata
+      rv$data4cluster <- climaticData()
     }
     else if (input$kmDataSrc == "filtDataKm"){
-      rv$data4cluster <- rv$dfSub
+      rv$data4cluster <- dfSub()
     }
     
-    dataKMx <- rv$data4cluster %>% select(all_of(input$kmx))
+    dataKMx <- rv$data4cluster %>% dplyr::select(all_of(input$kmx))
     
     rv$data4cluster <- rv$data4cluster[complete.cases(dataKMx), ]
     dataKMx <- dataKMx[complete.cases(dataKMx),]
@@ -480,17 +464,17 @@ function(input, output, session) {
   ###################  PCA Analysis   ####################
   ########################################################  
   
-  observe({
-    shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = rv$worldClimVar)
-  })
+  # observe({
+  #   shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = rv$worldClimVar)
+  # })
   
   observeEvent(input$PCAsummary, {
     if(input$pcaDataSrc == "allDataPca"){
-      rv$data4pca <- rv$WCdata
+      rv$data4pca <- climaticData()
       rv$filteredPca <- FALSE
     }
     else if (input$pcaDataSrc == "filtDataPca"){
-      rv$data4pca <- rv$dfSub
+      rv$data4pca <- dfSub()
       rv$filteredPca <- TRUE
     }
     rv$pca_var <- input$pca_var
@@ -719,7 +703,13 @@ function(input, output, session) {
                     options = list(dom = "Bfrtip",
                                    pageLength = 10,
                                    buttons = c('csv', 'excel'),
-                                   scrollX = TRUE))
+                                   scrollX = TRUE),
+                    callback = JS(paste0("
+                      var tip = '",isolate(input$traitName),"';
+                      header = table.columns().header();
+                      $(header[header.length-1]).attr('title', tip);
+                      $(header[header.length-1]).tooltip();
+                      ")))
     })
     
     output$TraitDataSum <- DT::renderDataTable(server = FALSE, {
@@ -764,7 +754,8 @@ function(input, output, session) {
     
     output$exptIGFreq <- plotly::renderPlotly({
       req(rv$traitsData)
-      freq.by.expt <- rv$traitsData %>% group_by(EXPT) %>% summarize(count_IG=length(unique(IG)))
+      freq.by.expt <- rv$traitsData %>% dplyr::group_by(EXPT) %>% 
+                        dplyr::summarize(count_IG=length(unique(IG)))
       
       plotly::plot_ly(freq.by.expt, x = freq.by.expt[['EXPT']], y = ~count_IG, type = 'bar', color = "#ff8103") %>%
         plotly::layout(yaxis = list(title = ""), title = list(text = 'No. of unique IGs per EXPT', y = 0.9))
@@ -772,7 +763,8 @@ function(input, output, session) {
     
     output$yearIGFreq <- plotly::renderPlotly({
       req(rv$traitsData)
-      freq.by.year <- rv$traitsData %>% group_by(YEAR) %>% summarize(count_IG=length(unique(IG)))
+      freq.by.year <- rv$traitsData %>% dplyr::group_by(YEAR) %>% 
+                        dplyr::summarize(count_IG=length(unique(IG)))
       
       plotly::plot_ly(freq.by.year, x = freq.by.year[['YEAR']], y = ~count_IG, type = 'bar', color = "#ff8103") %>%
         plotly::layout(yaxis = list(title = ""), title = list( text = 'No. of unique IGs per year', y = 0.9))
@@ -785,7 +777,8 @@ function(input, output, session) {
       
       if(!rv$isTraitNum){
         
-        freq.by.cat <- rv$traitsData %>% group_by(across(all_of(rv$field.name))) %>% summarize(count_IG=length(unique(IG))) 
+        freq.by.cat <- rv$traitsData %>% dplyr::group_by(across(all_of(rv$field.name))) %>% 
+                          dplyr::summarize(count_IG=length(unique(IG))) 
         
         plotly::plot_ly(freq.by.cat, x = freq.by.cat[[rv$field.name]], y = ~count_IG, type = 'bar', color = "#ff8103") %>% 
           plotly::layout(yaxis = list(title = ""), title = list(text = 'No. of unique IGs per category', y = 0.9))
