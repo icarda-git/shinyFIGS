@@ -30,7 +30,7 @@ function(input, output, session) {
   
   rv <- reactiveValues()
   
-  shinyjs::disable("downloadAcc")
+  #shinyjs::disable("downloadAcc")
   
   # create map
   output$map <- renderLeaflet(
@@ -92,7 +92,7 @@ function(input, output, session) {
   
   observeEvent(input$getAcc,{
     updateTabsetPanel(session, 'main', selected = 'accResult')
-    shinyjs::enable("downloadAcc")
+    #shinyjs::enable("downloadAcc")
   })
   
   #extract accessions based on IG
@@ -111,14 +111,14 @@ function(input, output, session) {
     df <- icardaFIGSr::getAccessions(IG = dataIG()[[IG]], coor = input$coor,
                                      ori = countryCodeIG, doi = input$doi,
                                      available = input$avail, taxon = TRUE, 
-                                     collectionYear = TRUE)
+                                     collectionYear = TRUE, other_id = input$other_id)
     })
     df
   })
   
   observeEvent(input$getAccIG,{
     updateTabsetPanel(session, 'main', selected = 'accResult')
-    shinyjs::enable("downloadAcc")
+    #shinyjs::enable("downloadAcc")
   })
     
   #get uploaded data
@@ -131,11 +131,23 @@ function(input, output, session) {
     
   #output: table + map 
     
-  output$table <- DT::renderDataTable({
+  output$table <- DT::renderDataTable(server = FALSE, {
     
     if(input$dataSrc == 'byCrop'){
       req(datasetInputCrop())
-      DT::datatable(datasetInputCrop(), filter = list(position = "top", clear = FALSE), options = list(pageLength = 10, scrollX = TRUE), callback = DT::JS(" //hide column filters for specific columns
+      DT::datatable(datasetInputCrop(),
+                    extensions = 'Buttons',
+                    filter = list(position = "top", clear = FALSE), 
+                options = list(pageLength = 10, 
+                               scrollX = TRUE, 
+                               dom = "Bfrtip",
+                               buttons = list(list(
+                                 extend = "collection",
+                                 buttons = list(
+                                 list(extend = 'csv', filename = paste0("passport_data_",Sys.Date())),
+                                 list(extend = 'excel', filename = paste0("passport_data_",Sys.Date()))),
+                               text = 'Download'))),
+                callback = DT::JS(" //hide column filters for specific columns
       $.each([2, 3, 6, 7, 8, 9], function(i, v) {
                                      $('input.form-control').eq(v).hide()
                                      });"))
@@ -151,7 +163,17 @@ function(input, output, session) {
         rv$datasetInput <- dataUpload()
       }
         
-      DT::datatable(rv$datasetInput, options = list(pageLength = 10, scrollX = TRUE))
+      DT::datatable(rv$datasetInput,
+                    extensions = 'Buttons',
+                    options = list(pageLength = 10, 
+                                   scrollX = TRUE, 
+                                   dom = "Bfrtip", 
+                                   bbuttons = list(list(
+                                     extend = "collection",
+                                     buttons = list(
+                                       list(extend = 'csv', filename = paste0("passport_data_",Sys.Date())),
+                                       list(extend = 'excel', filename = paste0("passport_data_",Sys.Date()))),
+                                     text = 'Download'))))
     }
   })
   
@@ -252,15 +274,14 @@ function(input, output, session) {
       plotly::add_histogram() 
   })
   
-  output$downloadAcc <- downloadHandler(
-    filename = function() {
-      paste0("passport_data",".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(rv$datasetInput, file, row.names = FALSE)
-    }
-  )
-  
+  # output$downloadAcc <- downloadHandler(
+  #   filename = function() {
+  #     paste0("passport_data",".csv", sep = "")
+  #   },
+  #   content = function(file) {
+  #     write.csv(rv$datasetInput, file, row.names = FALSE)}
+  # )
+  # outputOptions(output, "downloadAcc", suspendWhenHidden = FALSE)
   ########################################################
   ############  Extracting World Clim Data   #############
   ########################################################
@@ -284,8 +305,18 @@ function(input, output, session) {
     selectInput("clim_var", "Select a variable", choices = c("None",climVars()), selected="None")
   })
   
-  output$WCtable <- DT::renderDataTable({
-    DT::datatable(climaticData(), rownames = FALSE, options = list(pageLength = 10, scrollX = TRUE))
+  output$WCtable <- DT::renderDataTable(server = FALSE, {
+    DT::datatable(climaticData(), rownames = FALSE,
+                  extensions = 'Buttons', 
+                  options = list(pageLength = 10, 
+                                 scrollX = TRUE, 
+                                 dom = "Bfrtip", 
+                                 buttons = list(list(
+                                   extend = "collection",
+                                   buttons = list(
+                                     list(extend = 'csv', filename = paste0("climate_data_",Sys.Date())),
+                                     list(extend = 'excel', filename = paste0("climate_data_",Sys.Date()))),
+                                   text = 'Download'))))
   })
   
   observe({
@@ -293,13 +324,13 @@ function(input, output, session) {
     mapAccessions(WCMap, df = climaticData(), long = rv$lng, lat = rv$lat, y = input$clim_var)
   })
   
-  output$downloadWCData <- downloadHandler(
-    filename = function() {
-      paste0("WorldClimData",".csv", sep = "")
-    },
-    content = function(file) {
-      write.csv(climaticData(), file, row.names = F)}
-  )
+  # output$downloadWCData <- downloadHandler(
+  #   filename = function() {
+  #     paste0("WorldClimData",".csv", sep = "")
+  #   },
+  #   content = function(file) {
+  #     write.csv(climaticData(), file, row.names = F)}
+  # )
   
   observe({
     #rv$WCDataNames <- names(climaticData())
@@ -627,9 +658,19 @@ function(input, output, session) {
       plotly::plot_ly(rv$core, x = ~cluster, color = "#ff8103") %>% plotly::add_histogram()
     })
     
-    output$coreDataTable <- DT::renderDataTable({
+    output$coreDataTable <- DT::renderDataTable(server = FALSE, {
       req(rv$core)
-      DT::datatable(rv$core, options = list(pageLength = 10, scrollX = TRUE))
+      DT::datatable(rv$core,
+                    extensions = 'Buttons', 
+                    options = list(pageLength = 10, 
+                                   scrollX = TRUE, 
+                                   dom = "Bfrtip", 
+                                   buttons = list(list(
+                                     extend = "collection",
+                                     buttons = list(
+                                       list(extend = 'csv', filename = paste0("core_data_",Sys.Date())),
+                                       list(extend = 'excel', filename = paste0("core_data_",Sys.Date()))),
+                                     text = 'Download'))))
     })
     
     observe({
@@ -637,13 +678,13 @@ function(input, output, session) {
       map_two_dfs(coreMap, rv$data4core, rv$core, lng = rv$lng, lat = rv$lat, type = "Core Data")
     })
     
-    output$coreDLbutton <- downloadHandler(
-      filename = function() {
-        paste0("coreCollectionData",".csv", sep = "")
-      },
-      content = function(file) {
-        write.csv(rv$core, file, row.names = F)}
-    )
+    # output$coreDLbutton <- downloadHandler(
+    #   filename = function() {
+    #     paste0("coreCollectionData",".csv", sep = "")
+    #   },
+    #   content = function(file) {
+    #     write.csv(rv$core, file, row.names = F)}
+    # )
     
   #' Traits Analysis
   #'
@@ -693,7 +734,12 @@ function(input, output, session) {
                     extensions = 'Buttons',
                     options = list(dom = "Bfrtip",
                                    pageLength = 10,
-                                   buttons = c('csv', 'excel')))
+                                   buttons = list(list(
+                                     extend = "collection",
+                                     buttons = list(
+                                       list(extend = 'csv', filename = paste0("descriptors_",rv$crop)),
+                                       list(extend = 'excel', filename = paste0("descriptors_",rv$crop))),
+                                     text = 'Download'))))
     })
     
     output$TraitDataTbl <- DT::renderDataTable(server = FALSE, {
@@ -702,7 +748,12 @@ function(input, output, session) {
                     extensions = 'Buttons',
                     options = list(dom = "Bfrtip",
                                    pageLength = 10,
-                                   buttons = c('csv', 'excel'),
+                                   buttons = list(list(
+                                     extend = "collection",
+                                     buttons = list(
+                                       list(extend = 'csv', filename = paste0(rv$crop,"_",input$traitName)),
+                                       list(extend = 'excel', filename = paste0(rv$crop,"_",input$traitName))),
+                                     text = 'Download')),
                                    scrollX = TRUE),
                     callback = JS(paste0("
                       var tip = '",isolate(input$traitName),"';
@@ -734,7 +785,12 @@ function(input, output, session) {
                       options = list(scrollX = TRUE,
                                      dom = "Bfrtip",
                                      pageLength = 10,
-                                     buttons = c('csv', 'excel'),
+                                     buttons = list(list(
+                                       extend = "collection",
+                                       buttons = list(
+                                         list(extend = 'csv', filename = paste0(rv$crop,"_",input$traitName,"_summary")),
+                                         list(extend = 'excel', filename = paste0(rv$crop,"_",input$traitName,"_summary"))),
+                                       text = 'Download')),
                                      columnDefs = list(list(targets = 1, searchable = FALSE))))
       })
       

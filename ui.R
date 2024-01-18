@@ -60,15 +60,18 @@ shinyUI(
                                                                              checkboxInput("coor", "Coordinates", value = TRUE),
                                                                              checkboxInput("doi", "DOI", value = FALSE),
                                                                              checkboxInput("avail", "Availability", value = FALSE),
+                                                                             checkboxInput("other_id", "Other IDs", value = FALSE),
                                                                              actionButton("getAccIG", "Get Accessions")),
                                                             ###### Extract External Data ######
                                                             conditionalPanel("input.dataSrc == 'extData'",
                                                                              uploadDataUI('uploadData')),
                                                             uiOutput("coords"),
-                                                            HTML('<hr>'),
-                                                            h4("Download Accessions (.csv)"),
-                                                            HTML('<hr>'),
-                                                            downloadButton("downloadAcc", "Download"), width = 3),
+                                                            # HTML('<hr>'),
+                                                            # h4("Download Accessions (.csv)"),
+                                                            # HTML('<hr>'),
+                                                            # downloadButton("downloadAcc", "Download"),
+                                                            #downloadButton("downloadAcc", "Download"),
+                                                            width = 3),
                                                mainPanel(
                                                          tabsetPanel(id = "main",
                                                                      tabPanel(value = "accResult",
@@ -100,7 +103,8 @@ shinyUI(
                                                sidebarPanel(
                                                  extractWCDataUI("extractWCData"),
                                                  actionButton("extractWC", "Get World Clim Data"),
-                                                 downloadButton("downloadWCData", "Download")),
+                                                 #downloadButton("downloadWCData", "Download")
+                                                 ),
                                                mainPanel(
                                                  tabsetPanel(id = "wcMainPanel",
                                                              tabPanel(value = "WCTable",
@@ -203,8 +207,9 @@ shinyUI(
                                                                          inline = F),
                                                             coreCollectionUI("coreCollection"),
                                                             actionButton("coreButton", "Core Collection"),
-                                                            br(), br(),
-                                                            downloadButton("coreDLbutton", label = "Download Core Collection")),
+                                                            # br(), br(),
+                                                            # downloadButton("coreDLbutton", label = "Download Core Collection")
+                                                            ),
                                                mainPanel(tabsetPanel(id = "coreMain",
                                                                      tabPanel(value = "coreMap",
                                                                               "Map",
