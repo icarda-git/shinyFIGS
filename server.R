@@ -1,9 +1,9 @@
 #install required packages
-list_of_packages = c(c('shiny','dplyr','rmarkdown','shinyjs','DT',
+list_of_packages = c('shiny','dplyr','rmarkdown','shinyjs','DT',
                        'ggplot2','leaflet','shinyWidgets',
                        'BiocManager','httr','magrittr','plyr','plotly',
                        'raster','sp','rgdal','readr','icardaFIGSr',
-                       'terra','purrr','shinydashboard'))
+                       'terra','purrr','shinydashboard')
 
 lapply(list_of_packages,
        function(x) if(!require(x,character.only = TRUE)) 
@@ -771,6 +771,7 @@ function(input, output, session) {
         
         if(is.na(rv$traits[rv$traits$Trait == rv$traitName, 'Options'])){
           rv$isTraitNum <- TRUE
+          rv$traitsData[[rv$field.name]] <- as.numeric(rv$traitsData[[rv$field.name]])
           rv$traitSummary <- rv$traitsData %>% group_by(IG) %>% summarise(across(rv$field.name, mean)) %>% mutate_at(rv$field.name, funs(round(., 2)))
         }
         
