@@ -29,7 +29,8 @@ countries <- readRDS("data/countries.rds")
 function(input, output, session) {
   
   rv <- reactiveValues()
-  
+  rv$clustered_all <- FALSE
+  rv$clustered_filtered <- FALSE
   #shinyjs::disable("downloadAcc")
   
   # create map
@@ -99,7 +100,6 @@ function(input, output, session) {
   dataIG <- callModule(uploadDataMod, "uploadIGData")
   
   observe({
-    #columns <- names(dataIG())
     updateSelectInput(session, "IG", label = "Select Identifier Column", choices = names(dataIG()))
   })
   
@@ -136,6 +136,7 @@ function(input, output, session) {
     if(input$dataSrc == 'byCrop'){
       req(datasetInputCrop())
       DT::datatable(datasetInputCrop(),
+                    rownames = FALSE,
                     extensions = 'Buttons',
                     filter = list(position = "top", clear = FALSE), 
                 options = list(pageLength = 10, 
@@ -164,6 +165,7 @@ function(input, output, session) {
       }
         
       DT::datatable(rv$datasetInput,
+                    rownames = FALSE,
                     extensions = 'Buttons',
                     options = list(pageLength = 10, 
                                    scrollX = TRUE, 
@@ -211,10 +213,6 @@ function(input, output, session) {
     }
   })
   
-  # rv$ycolumns <- reactive({
-  #   names(rv$datasetInput)
-  # })
-  
   output$selectUI_1 <- renderUI({
     freezeReactiveValue(input, "y")
     selectInput("y", "Select a variable", choices = c("None", names(rv$datasetInput)))
@@ -248,7 +246,6 @@ function(input, output, session) {
   
   # Statistical plot of variables from dataset extracted by crop name
   output$first_var <- renderUI({
-    #req(rv$ycolumns())
     req(rv$datasetInput)
     rv$vars_plotted <- c('Country','PopulationType','Taxon')
     selectInput("var_plot", "Select a variable", choices = c(rv$vars_plotted))
@@ -261,10 +258,8 @@ function(input, output, session) {
   })
   
   output$second_var <- renderUI({
-    #req(rv$ycolumns())
     req(rv$datasetInput)
     vars_plotted <- setdiff(rv$vars_plotted, c(input$var_plot))
-
     selectInput("var2_plot", "Select a second variable", choices = c(vars_plotted))
   })
   
@@ -274,14 +269,6 @@ function(input, output, session) {
       plotly::add_histogram() 
   })
   
-  # output$downloadAcc <- downloadHandler(
-  #   filename = function() {
-  #     paste0("passport_data",".csv", sep = "")
-  #   },
-  #   content = function(file) {
-  #     write.csv(rv$datasetInput, file, row.names = FALSE)}
-  # )
-  # outputOptions(output, "downloadAcc", suspendWhenHidden = FALSE)
   ########################################################
   ############  Extracting World Clim Data   #############
   ########################################################
@@ -301,7 +288,6 @@ function(input, output, session) {
   })
   
   output$selectUI_2 <- renderUI({
-    #rv$climateVars <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 'prec*', 'bio*', 'srad*', 'vapr*', 'wind*'), names(climaticData()))
     selectInput("clim_var", "Select a variable", choices = c("None",climVars()), selected="None")
   })
   
@@ -324,16 +310,7 @@ function(input, output, session) {
     mapAccessions(WCMap, df = climaticData(), long = rv$lng, lat = rv$lat, y = input$clim_var)
   })
   
-  # output$downloadWCData <- downloadHandler(
-  #   filename = function() {
-  #     paste0("WorldClimData",".csv", sep = "")
-  #   },
-  #   content = function(file) {
-  #     write.csv(climaticData(), file, row.names = F)}
-  # )
-  
   observe({
-    #rv$WCDataNames <- names(climaticData())
     updateSelectInput(session, "climVarSub", label = "Select Variables", choices = climVars())
     shinyWidgets::updatePickerInput(session, "kmx", label = "Select Variables", choices = climVars())
     shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = climVars())
@@ -342,8 +319,6 @@ function(input, output, session) {
   ##############################################################################
   ###################  Climate Variables based Subsetting   ####################
   ############################################################################## 
-  
-  #climVarSub <- callModule(multiVarAnalysisMod, "multiVarAnalysis", climVars(), rv)
   
   climVarSub <- reactive({
     input$climVarSub
@@ -377,7 +352,7 @@ function(input, output, session) {
     observe({
       if(is.null(climVarSub())){
         removeUI(
-          selector = "#sliders > div", multiple = T
+          selector = "#sliders > div", multiple = TRUE
         )
       }
       map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
@@ -418,24 +393,23 @@ function(input, output, session) {
       paste0("WorldClimDataSubset",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(dfSub(), file, row.names = F)}
+      write.csv(dfSub(), file, row.names = FALSE)}
   )
   
   ########################################################
   ################  K-Means Clustering   #################
   ########################################################
   
-  # observe({
-  #   shinyWidgets::updatePickerInput(session, "kmx", label = "Select Variables", choices = rv$worldClimVar)
-  # })
+  cluster.res <- callModule(kMeansClusteringMod, "kMeansClustering", rv)
   
   observeEvent(input$kmeansBtn, {
-    
     if(input$kmDataSrc == "allDataKm"){
       rv$data4cluster <- climaticData()
+      rv$clustered_all <- TRUE
     }
     else if (input$kmDataSrc == "filtDataKm"){
       rv$data4cluster <- dfSub()
+      rv$clustered_filtered <- TRUE
     }
     
     dataKMx <- rv$data4cluster %>% dplyr::select(all_of(input$kmx))
@@ -444,42 +418,36 @@ function(input, output, session) {
     dataKMx <- dataKMx[complete.cases(dataKMx),]
     rv$dataKMx <- scale(dataKMx)
     
-    cluster.res <- callModule(kMeansClusteringMod, "kMeansClustering", rv)
-    rv$clusterRes <- cluster.res()
-    
     if(input$kmDataSrc == "allDataKm"){
-      rv$clusterDataAll <- rv$clusterRes
+      rv$clusterDataAll <- cluster.res()
     }
     else if (input$kmDataSrc == "filtDataKm"){
-      rv$clusterDataFilt <- rv$clusterRes
+      rv$clusterDataFilt <- cluster.res()
     }
   
     output$totkm <- renderPrint({
-      req(rv$clusterRes)
-      paste("tot.withinss: ", rv$clusterRes[[1]]$tot.withinss," betweenss: ", rv$clusterRes[[1]]$betweenss)
+      req(cluster.res())
+      paste("tot.withinss: ", cluster.res()[[1]]$tot.withinss,
+            " betweenss: ", cluster.res()[[1]]$betweenss)
     })
-  })
-  
-  observe({
-    #output$mapcluster <- leaflet::renderLeaflet({
-    req(rv$lng, rv$lat, rv$clusterRes)
+    
     pal <- leaflet::colorFactor(
       palette = "viridis",
-      domain = rv$clusterRes[[2]]$cluster
+      domain = cluster.res()[[2]]$cluster
     )
     
     mapcluster %>% clearMarkers() %>%
       clearControls() %>% removeLayersControl() %>%
-      leaflet::addCircleMarkers(data = rv$clusterRes[[2]],
-                                lng = rv$clusterRes[[2]][[rv$lng]],
-                                lat = rv$clusterRes[[2]][[rv$lat]],
-                                color = ~pal(rv$clusterRes[[2]][["cluster"]]),
+      leaflet::addCircleMarkers(data = cluster.res()[[2]],
+                                lng = cluster.res()[[2]][[rv$lng]],
+                                lat = cluster.res()[[2]][[rv$lat]],
+                                color = ~pal(cluster.res()[[2]][["cluster"]]),
                                 radius = 2,
                                 fill = TRUE,
-                                fillColor = ~pal(rv$clusterRes[[2]][["cluster"]]),
-                                label = ~rv$clusterRes[[2]][["cluster"]],
+                                fillColor = ~pal(cluster.res()[[2]][["cluster"]]),
+                                label = ~cluster.res()[[2]][["cluster"]],
                                 fillOpacity = 1, weight = 0.1) %>%
-      leaflet::addLegend(pal = pal, values = rv$clusterRes[[2]][["cluster"]], opacity = 1,  title = 'Cluster')
+      leaflet::addLegend(pal = pal, values = cluster.res()[[2]][["cluster"]], opacity = 1,  title = 'Cluster')
   })
   
   output$downloadClusterData <- downloadHandler(
@@ -487,17 +455,13 @@ function(input, output, session) {
       paste0("ClusterData",".csv", sep = "")
     },
     content = function(file) {
-      write.csv(rv$clusterRes[[2]], file, row.names = F)}
+      write.csv(cluster.res()[[2]], file, row.names = F)}
   )
   
   
   ########################################################
   ###################  PCA Analysis   ####################
   ########################################################  
-  
-  # observe({
-  #   shinyWidgets::updatePickerInput(session, "pca_var", label = "Select Variables", choices = rv$worldClimVar)
-  # })
   
   observeEvent(input$PCAsummary, {
     if(input$pcaDataSrc == "allDataPca"){
@@ -533,7 +497,6 @@ function(input, output, session) {
 
     plotly::plot_ly(R2cum, y = ~R2cum, type = 'scatter', mode = 'lines', fill = 'tozeroy', color = "#ff8103") %>%
       plotly::layout(xaxis = list(title = list(text ='Components')), yaxis = list(title = list(text ='Cumulative Explained Variance')))
-    # plot(rv$pcaSummary, col = "#ff8103", border = "white")
   })
   
   observe({
@@ -553,14 +516,11 @@ function(input, output, session) {
   output$pcaPlot <- plotly::renderPlotly({
     input$PCAPlotButton
     if(input$plotRadios == 'plain'){
-      #rv$pcaPlot + ggplot2::geom_point()
       color = NULL
     }
-    else if(input$plotRadios == 'colored')
-    {
+    else if(input$plotRadios == 'colored'){
       req(input$pcaPlotVar)
       color = rv$completeData[[input$pcaPlotVar]]
-      # rv$pcaPlot + ggplot2::geom_point(ggplot2::aes(colour = rv$completeData[[input$pcaPlotVar]])) + ggplot2::labs(colour = input$pcaPlotVar)
     }
     R2.percentage <- 100 * rv$pcaSummary@R2
     
@@ -605,7 +565,6 @@ function(input, output, session) {
         yaxis4=axis,
         yaxis5=axis
       )
-    
   })
       
   ##Mapping pca results
@@ -643,48 +602,45 @@ function(input, output, session) {
   ##############################  Core Collection   ############################
   ##############################################################################  
   
-  core <- callModule(coreCollectionMod, "coreCollection", rv)
-  observeEvent(input$coreButton, {
+  observe({
     if(input$coreDataSrc == "allDataCC"){
-      rv$data4core <- rv$clusterDataAll[[2]]
+      rv$data4core <- if(rv$clustered_all) rv$clusterDataAll[[2]] else climaticData()
     }
     else if (input$coreDataSrc == "filtDataCC"){
-      rv$data4core <- rv$clusterDataFilt[[2]]
+      rv$data4core <- if(rv$clustered_filtered) rv$clusterDataFilt[[2]] else dfSub()
     }
-    rv$core <- core()
   })
-    output$corePlot <- plotly::renderPlotly({
-      req(rv$core)
-      plotly::plot_ly(rv$core, x = ~cluster, color = "#ff8103") %>% plotly::add_histogram()
+  
+  cc <- callModule(coreCollectionMod, "coreCollection", rv)
+  
+  core <- eventReactive(input$coreButton, {
+    cc()
+  })
+  
+  output$corePlot <- plotly::renderPlotly({
+    req(core())
+    plotly::plot_ly(core()[[1]], x = core()[[1]][[core()[[2]]]], color = "#ff8103") %>% plotly::add_histogram()
+  })
+    
+  output$coreDataTable <- DT::renderDataTable(server = FALSE, {
+    req(core())
+    DT::datatable(core()[[1]],
+                  rownames = FALSE,
+                  extensions = 'Buttons', 
+                  options = list(pageLength = 10, 
+                                  scrollX = TRUE, 
+                                  dom = "Bfrtip", 
+                                  buttons = list(list(
+                                    extend = "collection",
+                                    buttons = list(
+                                      list(extend = 'csv', filename = paste0("core_data_",Sys.Date())),
+                                      list(extend = 'excel', filename = paste0("core_data_",Sys.Date()))),
+                                    text = 'Download'))))
     })
     
-    output$coreDataTable <- DT::renderDataTable(server = FALSE, {
-      req(rv$core)
-      DT::datatable(rv$core,
-                    extensions = 'Buttons', 
-                    options = list(pageLength = 10, 
-                                   scrollX = TRUE, 
-                                   dom = "Bfrtip", 
-                                   buttons = list(list(
-                                     extend = "collection",
-                                     buttons = list(
-                                       list(extend = 'csv', filename = paste0("core_data_",Sys.Date())),
-                                       list(extend = 'excel', filename = paste0("core_data_",Sys.Date()))),
-                                     text = 'Download'))))
+    observeEvent(input$coreButton, {
+      map_two_dfs(coreMap, rv$data4core, core()[[1]], lng = rv$lng, lat = rv$lat, type = "Core Data")
     })
-    
-    observe({
-      req(rv$lng, rv$lat, rv$data4core, rv$core)
-      map_two_dfs(coreMap, rv$data4core, rv$core, lng = rv$lng, lat = rv$lat, type = "Core Data")
-    })
-    
-    # output$coreDLbutton <- downloadHandler(
-    #   filename = function() {
-    #     paste0("coreCollectionData",".csv", sep = "")
-    #   },
-    #   content = function(file) {
-    #     write.csv(rv$core, file, row.names = F)}
-    # )
     
   #' Traits Analysis
   #'
@@ -730,7 +686,8 @@ function(input, output, session) {
     })
     
     output$TraitTbl <- DT::renderDataTable(server = FALSE, {
-      DT::datatable(rv$traits, 
+      DT::datatable(rv$traits,
+                    rownames = FALSE,
                     extensions = 'Buttons',
                     options = list(dom = "Bfrtip",
                                    pageLength = 10,
@@ -744,6 +701,7 @@ function(input, output, session) {
     
     output$TraitDataTbl <- DT::renderDataTable(server = FALSE, {
       DT::datatable(rv$traitsData,
+                    rownames = FALSE,
                     filter = list(position = "top", clear = FALSE),
                     extensions = 'Buttons',
                     options = list(dom = "Bfrtip",
@@ -781,6 +739,7 @@ function(input, output, session) {
         }
         
         DT::datatable(rv$traitSummary,
+                      rownames = FALSE,
                       filter = list(position = "top", clear = FALSE),
                       extensions = 'Buttons',
                       options = list(scrollX = TRUE,
