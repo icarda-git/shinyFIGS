@@ -41,9 +41,7 @@ getAccessionsCropMod <- function(input, output, session, rv){
     df[["CollectionYear"]] <- as.integer(df[["CollectionYear"]])
     
     if(available){
-      avail_columns <- c("AVAIL_LBN","AVAIL_MA","AVAIL_SYR")
-      avail_columns <- intersect(names(df), avail_columns)
-      df[avail_columns] <- lapply(df[avail_columns], factor)
+      df["Availability"] <- factor(df["Availability"])
     }
     
     if(other_id){
