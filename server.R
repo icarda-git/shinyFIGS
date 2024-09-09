@@ -111,7 +111,8 @@ function(input, output, session) {
     df <- icardaFIGSr::getAccessions(IG = dataIG()[[IG]], coor = input$coor,
                                      ori = countryCodeIG, doi = input$doi,
                                      available = input$avail, taxon = TRUE, 
-                                     collectionYear = TRUE, other_id = input$other_id)
+                                     collectionYear = TRUE,
+                                     other_id = input$other_id)
     })
     df
   })
@@ -131,7 +132,7 @@ function(input, output, session) {
     
   #output: table + map 
     
-  output$table <- DT::renderDataTable(server = FALSE, {
+  output$table <- DT::renderDataTable(server = TRUE, {
     
     if(input$dataSrc == 'byCrop'){
       req(datasetInputCrop())
@@ -291,7 +292,7 @@ function(input, output, session) {
     selectInput("clim_var", "Select a variable", choices = c("None",climVars()), selected="None")
   })
   
-  output$WCtable <- DT::renderDataTable(server = FALSE, {
+  output$WCtable <- DT::renderDataTable(server = TRUE, {
     DT::datatable(climaticData(), rownames = FALSE,
                   extensions = 'Buttons', 
                   options = list(pageLength = 10, 
@@ -622,7 +623,7 @@ function(input, output, session) {
     plotly::plot_ly(core()[[1]], x = core()[[1]][[core()[[2]]]], color = "#ff8103") %>% plotly::add_histogram()
   })
     
-  output$coreDataTable <- DT::renderDataTable(server = FALSE, {
+  output$coreDataTable <- DT::renderDataTable(server = TRUE, {
     req(core())
     DT::datatable(core()[[1]],
                   rownames = FALSE,
@@ -685,7 +686,7 @@ function(input, output, session) {
       updateTabsetPanel(session, 'traitMainPanel', selected = 'traitDataTable')
     })
     
-    output$TraitTbl <- DT::renderDataTable(server = FALSE, {
+    output$TraitTbl <- DT::renderDataTable(server = TRUE, {
       DT::datatable(rv$traits,
                     rownames = FALSE,
                     extensions = 'Buttons',
@@ -699,7 +700,7 @@ function(input, output, session) {
                                      text = 'Download'))))
     })
     
-    output$TraitDataTbl <- DT::renderDataTable(server = FALSE, {
+    output$TraitDataTbl <- DT::renderDataTable(server = TRUE, {
       DT::datatable(rv$traitsData,
                     rownames = FALSE,
                     filter = list(position = "top", clear = FALSE),
@@ -721,7 +722,7 @@ function(input, output, session) {
                       ")))
     })
     
-    output$TraitDataSum <- DT::renderDataTable(server = FALSE, {
+    output$TraitDataSum <- DT::renderDataTable(server = TRUE, {
       input$getTraitsData
       rv$traitName <- isolate(input$traitName)
       rv$field.name <- as.character(rv$traits[rv$traits$Trait == rv$traitName, 'Field Name'])
