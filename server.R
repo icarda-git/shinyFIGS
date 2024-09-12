@@ -249,13 +249,7 @@ function(input, output, session) {
   output$first_var <- renderUI({
     req(rv$datasetInput)
     rv$vars_plotted <- c('Country','PopulationType','Taxon')
-    selectInput("var_plot", "Select a variable", choices = c(rv$vars_plotted))
-  })
-  
-  output$plot <- plotly::renderPlotly({
-    req(rv$datasetInput)
-    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[[input$var_plot]], color = "#ff8103") %>%
-      plotly::add_histogram()
+    selectInput("var_plot", "Select the root variable", choices = c(rv$vars_plotted))
   })
   
   output$second_var <- renderUI({
@@ -264,11 +258,24 @@ function(input, output, session) {
     selectInput("var2_plot", "Select a second variable", choices = c(vars_plotted))
   })
   
-  output$bi_plot <- plotly::renderPlotly({
-    req(rv$datasetInput)
-    plotly::plot_ly(rv$datasetInput, x = rv$datasetInput[[input$var_plot]], color = rv$datasetInput[[input$var2_plot]]) %>%
-      plotly::add_histogram() 
-  })
+  ##treemap
+  output$tree_map <- renderD3tree2({
+    req(rv$datasetInput,input$var_plot,input$var2_plot)
+    cols <- c(input$var_plot,input$var2_plot)
+    data_treemap <- rv$datasetInput %>% dplyr::count(!!!syms(cols))
+    data_d3tree <- treemap(data_treemap,
+                 index=c(input$var_plot,input$var2_plot),
+                 vSize="n",
+                 type="index",
+                 palette = "Set2",
+                 bg.labels=c("white"),
+                 align.labels=list(
+                   c("center", "center"), 
+                   c("right", "bottom")
+                 ))
+    
+    d3tree2(data_d3tree, rootname = input$var_plot)
+    })
   
   ########################################################
   ############  Extracting World Clim Data   #############

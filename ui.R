@@ -1,6 +1,8 @@
 library(shiny)
 library(shinydashboard)
 library(shinyWidgets)
+library(treemap)
+library(d3treeR)
 # library(leaflet)
 
 # Load functions
@@ -86,19 +88,13 @@ shinyUI(
                                                                                             draggable = TRUE,
                                                                                             uiOutput('selectUI_1'))),
                                                                      tabPanel(value = "accPlot",
-                                                                              "Plot",
-                                                                              plotly::plotlyOutput(outputId = "plot"),
-                                                                              absolutePanel(top = 50,
-                                                                                            left = 90,
-                                                                                            width = 400,
-                                                                                            draggable = TRUE,
-                                                                                            uiOutput('first_var')),
-                                                                              plotly::plotlyOutput(outputId = "bi_plot"),
-                                                                              absolutePanel(top = 450,
-                                                                                            left = 90,
-                                                                                            width = 400,
-                                                                                            draggable = TRUE,
-                                                                                            uiOutput('second_var')))), width = 9)),
+                                                                              "Bivariate Plot",
+                                                                              fluidRow(
+                                                                                uiOutput('first_var', style = 'display: inline-block; margin-left: 15px; margin-right: 50px;'),
+                                                                                uiOutput('second_var', style = 'display: inline-block;')
+                                                                              ),
+                                                                              d3tree2Output("tree_map", height = "600px")
+                                                                              )), width = 9)),
                                       tabPanel("World Climatic Data",
                                                sidebarPanel(
                                                  extractWCDataUI("extractWCData"),
