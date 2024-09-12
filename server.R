@@ -205,12 +205,12 @@ function(input, output, session) {
   
   observeEvent(input$table_rows_all,{
     if(input$dataSrc == 'byCrop'){
-      rv$crop <- unique(datasetInputCrop()[['Crop']])
+      rv$crop <- unique(datasetInputCrop()[['CROP_NAME']])
       rv$datasetInput <- datasetInputCrop()[input$table_rows_all,]
       rv$datasetInput
     }
     else if(input$dataSrc == 'byIG'){
-      rv$crop <- unique(rv$datasetInput[['Crop']])
+      rv$crop <- unique(rv$datasetInput[['CROP_NAME']])
     }
   })
   
