@@ -138,17 +138,9 @@ function(input, output, session) {
       req(datasetInputCrop())
       DT::datatable(datasetInputCrop(),
                     rownames = FALSE,
-                    extensions = 'Buttons',
                     filter = list(position = "top", clear = FALSE), 
-                options = list(pageLength = 10, 
-                               scrollX = TRUE, 
-                               dom = "Bfrtip",
-                               buttons = list(list(
-                                 extend = "collection",
-                                 buttons = list(
-                                 list(extend = 'csv', filename = paste0("passport_data_",Sys.Date())),
-                                 list(extend = 'excel', filename = paste0("passport_data_",Sys.Date()))),
-                               text = 'Download'))),
+                options = list(pageLength = 5, 
+                               scrollX = TRUE),
                 callback = DT::JS(" //hide column filters for specific columns
       $.each([2, 3, 6, 7, 8, 9], function(i, v) {
                                      $('input.form-control').eq(v).hide()
@@ -277,6 +269,32 @@ function(input, output, session) {
     d3tree2(data_d3tree, rootname = input$var_plot)
     })
   
+  #download passport data
+  observe({
+    if(input$dataSrc!="extData"){
+      output$dlButton <- renderUI({
+        dlButton <- list(
+        HTML('<hr>'),
+        h4("Download Data (.csv)"),
+        HTML('<hr>'),
+        downloadButton(outputId="downloadAcc", label="Download", style = 'display: inline-block;'))
+        do.call(tagList, dlButton)
+        })
+    }
+    else output$dlButton <- renderUI({
+      return(NULL)
+    })
+  })
+  
+  output$downloadAcc <- downloadHandler(
+    filename = function() {
+      paste0(rv$crop,"_passport_data_",Sys.Date(),".csv", sep = "")
+    },
+    content = function(filename) {
+      write.csv(x= rv$datasetInput, file = filename, row.names = FALSE)},
+    contentType = "text/csv"
+  )
+
   ########################################################
   ############  Extracting World Clim Data   #############
   ########################################################
@@ -300,23 +318,25 @@ function(input, output, session) {
   })
   
   output$WCtable <- DT::renderDataTable(server = TRUE, {
-    DT::datatable(climaticData(), rownames = FALSE,
-                  extensions = 'Buttons', 
-                  options = list(pageLength = 10, 
-                                 scrollX = TRUE, 
-                                 dom = "Bfrtip", 
-                                 buttons = list(list(
-                                   extend = "collection",
-                                   buttons = list(
-                                     list(extend = 'csv', filename = paste0("climate_data_",Sys.Date())),
-                                     list(extend = 'excel', filename = paste0("climate_data_",Sys.Date()))),
-                                   text = 'Download'))))
+    DT::datatable(climaticData(), rownames = FALSE, 
+                  options = list(pageLength = 5, 
+                                 scrollX = TRUE))
   })
   
   observe({
     req(rv$lng, rv$lat, climaticData(), input$clim_var)
     mapAccessions(WCMap, df = climaticData(), long = rv$lng, lat = rv$lat, y = input$clim_var)
   })
+  
+  #download passport data
+  output$downloadWCData <- downloadHandler(
+    filename = function() {
+      paste0("climatic_data.csv", sep = "")
+    },
+    content = function(filename) {
+      write.csv(x= climaticData(), file = filename, row.names = FALSE)},
+    contentType = "text/csv"
+  )
   
   observe({
     updateSelectInput(session, "climVarSub", label = "Select Variables", choices = climVars())
@@ -633,22 +653,23 @@ function(input, output, session) {
   output$coreDataTable <- DT::renderDataTable(server = TRUE, {
     req(core())
     DT::datatable(core()[[1]],
-                  rownames = FALSE,
-                  extensions = 'Buttons', 
-                  options = list(pageLength = 10, 
-                                  scrollX = TRUE, 
-                                  dom = "Bfrtip", 
-                                  buttons = list(list(
-                                    extend = "collection",
-                                    buttons = list(
-                                      list(extend = 'csv', filename = paste0("core_data_",Sys.Date())),
-                                      list(extend = 'excel', filename = paste0("core_data_",Sys.Date()))),
-                                    text = 'Download'))))
+                  rownames = FALSE, 
+                  options = list(pageLength = 5, 
+                                  scrollX = TRUE))
     })
     
     observeEvent(input$coreButton, {
       map_two_dfs(coreMap, rv$data4core, core()[[1]], lng = rv$lng, lat = rv$lat, type = "Core Data")
     })
+    
+    output$coreDLbutton <- downloadHandler(
+      filename = function() {
+        paste0(rv$crop,"_core_collection_",Sys.Date(),".csv", sep = "")
+      },
+      content = function(filename) {
+        write.csv(x= core()[[1]], file = filename, row.names = FALSE)},
+      contentType = "text/csv"
+    )
     
   #' Traits Analysis
   #'
@@ -693,7 +714,7 @@ function(input, output, session) {
       updateTabsetPanel(session, 'traitMainPanel', selected = 'traitDataTable')
     })
     
-    output$TraitTbl <- DT::renderDataTable(server = TRUE, {
+    output$TraitTbl <- DT::renderDataTable(server = FALSE, {
       DT::datatable(rv$traits,
                     rownames = FALSE,
                     extensions = 'Buttons',
@@ -707,7 +728,7 @@ function(input, output, session) {
                                      text = 'Download'))))
     })
     
-    output$TraitDataTbl <- DT::renderDataTable(server = TRUE, {
+    output$TraitDataTbl <- DT::renderDataTable(server = FALSE, {
       DT::datatable(rv$traitsData,
                     rownames = FALSE,
                     filter = list(position = "top", clear = FALSE),
@@ -729,7 +750,7 @@ function(input, output, session) {
                       ")))
     })
     
-    output$TraitDataSum <- DT::renderDataTable(server = TRUE, {
+    output$TraitDataSum <- DT::renderDataTable(server = FALSE, {
       input$getTraitsData
       rv$traitName <- isolate(input$traitName)
       rv$field.name <- as.character(rv$traits[rv$traits$Trait == rv$traitName, 'Field Name'])

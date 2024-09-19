@@ -15,7 +15,6 @@ for (f in list.files('./modules')) {
 crops <- getCrops()
 countries <- readRDS("data/countries.rds")
 
-
 shinyUI(
   fluidPage(
     includeCSS("css/styles.css"),
@@ -64,16 +63,12 @@ shinyUI(
                                                                              checkboxInput("avail", "Availability", value = FALSE),
                                                                              checkboxInput("other_id", "Other IDs", value = FALSE),
                                                                              actionButton("getAccIG", "Get Accessions")),
+                                                            uiOutput("dlButton"),
                                                             ###### Extract External Data ######
                                                             conditionalPanel("input.dataSrc == 'extData'",
                                                                              uploadDataUI('uploadData')),
-                                                            uiOutput("coords"),
-                                                            # HTML('<hr>'),
-                                                            # h4("Download Accessions (.csv)"),
-                                                            # HTML('<hr>'),
-                                                            # downloadButton("downloadAcc", "Download"),
-                                                            #downloadButton("downloadAcc", "Download"),
-                                                            width = 3),
+                                                            uiOutput("coords")
+                                                            ),
                                                mainPanel(
                                                          tabsetPanel(id = "main",
                                                                      tabPanel(value = "accResult",
@@ -94,12 +89,12 @@ shinyUI(
                                                                                 uiOutput('second_var', style = 'display: inline-block;')
                                                                               ),
                                                                               d3tree2Output("tree_map", height = "600px")
-                                                                              )), width = 9)),
+                                                                              )))),
                                       tabPanel("World Climatic Data",
                                                sidebarPanel(
                                                  extractWCDataUI("extractWCData"),
                                                  actionButton("extractWC", "Get World Clim Data"),
-                                                 #downloadButton("downloadWCData", "Download")
+                                                 downloadButton("downloadWCData", "Download")
                                                  ),
                                                mainPanel(
                                                  tabsetPanel(id = "wcMainPanel",
@@ -203,7 +198,7 @@ shinyUI(
                                                             coreCollectionUI("coreCollection"),
                                                             actionButton("coreButton", "Core Collection"),
                                                             # br(), br(),
-                                                            # downloadButton("coreDLbutton", label = "Download Core Collection")
+                                                            downloadButton("coreDLbutton", label = "Download Core Collection")
                                                             ),
                                                mainPanel(tabsetPanel(id = "coreMain",
                                                                      tabPanel(value = "coreMap",
