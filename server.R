@@ -84,7 +84,7 @@ function(input, output, session) {
       showTab(inputId = "main", target = "accPlot")
   })
   
-  #Extract data from ICARDA DB by crop name
+  #Extract data from ICARDA GRS DB by crop name
   passportDataCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
   
   datasetInputCrop <- eventReactive(input$getAcc,{
@@ -107,13 +107,16 @@ function(input, output, session) {
     IG <- input$IG
     countryName <- input$oriIG
     countryCodeIG <- countryCode(countryName = countryName)
-    withProgress(message = "Querying ICARDA DB ...", {
+    withProgress(message = "Querying ICARDA GRS DB ...", {
     df <- icardaFIGSr::getAccessions(IG = dataIG()[[IG]], coor = input$coor,
                                      ori = countryCodeIG, doi = input$doi,
                                      available = input$avail, taxon = TRUE, 
                                      collectionYear = TRUE,
                                      other_id = input$other_id)
     })
+    df[["PopulationType"]] <- factor(df[["PopulationType"]])
+    df[["Country"]] <- factor(df[["Country"]])
+    df[["Taxon"]] <- factor(df[["Taxon"]])
     df
   })
   
@@ -124,18 +127,23 @@ function(input, output, session) {
     
   #get uploaded data
   dataUpload <- callModule(uploadDataMod, "uploadData")
-
+  
   observe({
-    req(dataUpload())
-    rv$datasetInput <- dataUpload()
+    if(input$dataSrc == 'byIG'){
+      req(datasetInputIG())
+      rv$datasetInput <- datasetInputIG()
+    }
+    else{
+      req(dataUpload())
+      rv$datasetInput <- dataUpload()
+    }
   })
-    
   #output: table + map 
     
   output$table <- DT::renderDataTable(server = TRUE, {
     
     if(input$dataSrc == 'byCrop'){
-      req(datasetInputCrop())
+      #req(datasetInputCrop())
       DT::datatable(datasetInputCrop(),
                     rownames = FALSE,
                     filter = list(position = "top", clear = FALSE), 
@@ -148,27 +156,11 @@ function(input, output, session) {
     }
     
     else{
-      
-      if(input$dataSrc == 'byIG'){
-        rv$datasetInput <- datasetInputIG()
-      }
-      
-      if(input$dataSrc == 'extData'){
-        rv$datasetInput <- dataUpload()
-      }
         
       DT::datatable(rv$datasetInput,
                     rownames = FALSE,
-                    extensions = 'Buttons',
-                    options = list(pageLength = 10, 
-                                   scrollX = TRUE, 
-                                   dom = "Bfrtip", 
-                                   bbuttons = list(list(
-                                     extend = "collection",
-                                     buttons = list(
-                                       list(extend = 'csv', filename = paste0("passport_data_",Sys.Date())),
-                                       list(extend = 'excel', filename = paste0("passport_data_",Sys.Date()))),
-                                     text = 'Download'))))
+                    options = list(pageLength = 5, 
+                                   scrollX = TRUE))
     }
   })
   
@@ -199,7 +191,6 @@ function(input, output, session) {
     if(input$dataSrc == 'byCrop'){
       rv$crop <- unique(datasetInputCrop()[['CROP_NAME']])
       rv$datasetInput <- datasetInputCrop()[input$table_rows_all,]
-      rv$datasetInput
     }
     else if(input$dataSrc == 'byIG'){
       rv$crop <- unique(rv$datasetInput[['CROP_NAME']])
@@ -207,7 +198,7 @@ function(input, output, session) {
   })
   
   output$selectUI_1 <- renderUI({
-    freezeReactiveValue(input, "y")
+    #freezeReactiveValue(input, "y")
     selectInput("y", "Select a variable", choices = c("None", names(rv$datasetInput)))
   })
   
@@ -233,7 +224,7 @@ function(input, output, session) {
   })
   
   observe({
-    req(rv$datasetInput, input$y, rv$lng, rv$lat)
+    req(rv$datasetInput,input$y, rv$lng, rv$lat)
     mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = input$y)
   })
   
@@ -314,7 +305,7 @@ function(input, output, session) {
   })
   
   output$selectUI_2 <- renderUI({
-    selectInput("clim_var", "Select a variable", choices = c("None",climVars()), selected="None")
+    selectInput("clim_var", "Select a variable", choices = climVars())
   })
   
   output$WCtable <- DT::renderDataTable(server = TRUE, {

@@ -3,10 +3,10 @@ getAccessionsCropUI <- function(id){
   tagList(
     selectInput(ns("crop"), "Select a crop", c("Crop" = "", crops[2])),
     selectInput(ns("ori"), "Select country(ies)", multiple = TRUE, choices = c("Countries" = "", countries[1]), selected = ""),
-    checkboxInput(ns("coor"), "coordinates", value = TRUE),
-    checkboxInput(ns("doi"), "DOI", value = FALSE),
-    checkboxInput(ns("avail"), "Availability", value = FALSE),
-    checkboxInput(ns("other_id"), "Other IDs", value = FALSE)
+    checkboxInput(ns("avail"), "Get only available accessions", value = TRUE),
+    checkboxInput(ns("coor"), "Get only georeferenced accessions", value = TRUE),
+    checkboxInput(ns("doi"), "Include DOIs", value = FALSE),
+    checkboxInput(ns("other_id"), "Include Other IDs", value = FALSE)
   )
 }
 
@@ -24,7 +24,7 @@ getAccessionsCropMod <- function(input, output, session, rv){
     rv$countryCode <- countryCode(countryName = countryName)
     
     # query ICARDA database
-    withProgress(message = "Querying ICARDA DB ...", {
+    withProgress(message = "Querying ICARDA GRS DB ...", {
       df <- icardaFIGSr::getAccessions(crop = crop, ori = rv$countryCode, 
                                        coor = coor, doi = doi, taxon = TRUE, 
                                        collectionYear = TRUE, available = available,
@@ -39,10 +39,6 @@ getAccessionsCropMod <- function(input, output, session, rv){
     df[["Country"]] <- factor(df[["Country"]])
     df[["Taxon"]] <- factor(df[["Taxon"]])
     df[["CollectionYear"]] <- as.integer(df[["CollectionYear"]])
-    
-    if(available){
-      df["Availability"] <- factor(df["Availability"])
-    }
     
     if(other_id){
       other_column_names <- c("OTHER_ACCENUMB","OTHER_ACCENUMB_INST",

@@ -39,7 +39,7 @@ shinyUI(
                                                                          "",
                                                                          selected = "byCrop",
                                                                          c("Get Accessions by Crop Name" = "byCrop",
-                                                                           "Get Accessions by IG" = "byIG",
+                                                                           "Get Accessions by Accession Number" = "byIG",
                                                                            "Upload External Data" = "extData"),
                                                                          inline = FALSE),
                                                             ###### Extract Data based on crop ######
@@ -58,10 +58,10 @@ shinyUI(
                                                                                          multiple = T,
                                                                                          choices = c("Countries" = "", countries[1]),
                                                                                          selected = ""),
-                                                                             checkboxInput("coor", "Coordinates", value = TRUE),
-                                                                             checkboxInput("doi", "DOI", value = FALSE),
-                                                                             checkboxInput("avail", "Availability", value = FALSE),
-                                                                             checkboxInput("other_id", "Other IDs", value = FALSE),
+                                                                             checkboxInput("avail", "Get only available accessions", value = TRUE),
+                                                                             checkboxInput("coor", "Get only georefrenced accessions", value = TRUE),
+                                                                             checkboxInput("doi", "Include DOIs", value = FALSE),
+                                                                             checkboxInput("other_id", "Include other IDs", value = FALSE),
                                                                              actionButton("getAccIG", "Get Accessions")),
                                                             uiOutput("dlButton"),
                                                             ###### Extract External Data ######
@@ -72,7 +72,7 @@ shinyUI(
                                                mainPanel(
                                                          tabsetPanel(id = "main",
                                                                      tabPanel(value = "accResult",
-                                                                              "Table",
+                                                                              "Accessions",
                                                                               DT::dataTableOutput('table')),
                                                                      tabPanel(value = "accMap",
                                                                               "Map",
