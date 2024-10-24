@@ -129,7 +129,7 @@ sidebar_multivar <- layout_sidebar(
     selectInput("climVarSub", "Select Variables", list(""), multiple = TRUE),
     uiOutput("sliders"),
     actionButton("slidersButton", "Filter Data"),
-    actionButton("resetButton", "Reset"),
+    actionButton("resetButton", "Reset filters"),
     uiOutput("dataDescription"),
     uiOutput("MapDlBtns")
   ),
@@ -177,6 +177,9 @@ pca_accordions <- list(
   accordion_panel(
     value = "pcaPlot",
     "PCA Plot",
+    uiOutput('pc_x_axis', style = 'display: inline-block; width: 250px; margin-left: 15px; margin-right: 30px;'),
+    uiOutput('pc_y_axis', style = 'display: inline-block; width: 250px; margin-right: 30px;'),
+    uiOutput('pca_color_var', style = 'display: inline-block; width: 250px;'),
     plotly::plotlyOutput("pcaPlot")
   ),
   accordion_panel(
@@ -204,15 +207,7 @@ sidebar_pca <- layout_sidebar(
                                              style = "picker"),
                               multiple = TRUE),
     pcaSummaryUI("pcaSummary"),
-    actionButton("PCAsummary", "Summary"),
-    h4("PCA Plot"),
-    radioButtons("plotRadios",
-                 "",
-                 selected = "plain",
-                 c("Plain" = "plain", "Coloured" = "colored"),
-                 inline = TRUE),
-    uiOutput("pcaPlotVar"),
-    actionButton("PCAPlotButton", "PCA Plot")
+    actionButton("PCAsummary", "Get result")
   ),
   accordion(
     id = "pca_accd",

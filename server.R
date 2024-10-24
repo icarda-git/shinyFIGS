@@ -495,11 +495,21 @@ function(input, output, session) {
     rv$pcScores <- as.data.frame(rv$pcaSummary@scores)
     accordion_panel_open(id="pca_accd", values="pcaSummary", session = session)
   })
-
-  observeEvent(input$PCAPlotButton, {
-    updateTabsetPanel(session, 'pca', selected = 'pcaPlot') 
+  
+  output$pc_x_axis <- renderUI({
+    selectInput("xAxis", "Select x axis", choices = names(rv$pcScores))
   })
-    
+  
+  output$pc_y_axis <- renderUI({
+    yAxisChoices <- setdiff(names(rv$pcScores), c(input$xAxis))
+    selectInput("yAxis", "Select y axis", choices = yAxisChoices)
+  })
+  
+  output$pca_color_var <- renderUI({
+    selectInput("pcaPlotVar", label = "Select a color variable", 
+                choices = c("None", names(rv$completeData)))
+  })
+  
   output$summaryPca <- renderPrint({
     req(rv$pcaSummary)
     input$PCAsummary
@@ -515,28 +525,12 @@ function(input, output, session) {
     plotly::plot_ly(R2cum, y = ~R2cum, type = 'scatter', mode = 'lines', fill = 'tozeroy', color = "#ff8103") %>%
       plotly::layout(xaxis = list(title = list(text ='Components')), yaxis = list(title = list(text ='Cumulative Explained Variance')))
   })
-  
-  observe({
-    if(input$plotRadios == 'plain'){
-      shinyjs::hide("pcaPlotVar")
-     } 
-    else if(input$plotRadios == 'colored') {
-      
-      output$pcaPlotVar <- renderUI({
-        selectInput("pcaPlotVar", label = "Select a color variable", choices = names(rv$completeData)) 
-      }) 
-      
-      shinyjs::show("pcaPlotVar")
-     }
-    }) 
     
   output$pcaPlot <- plotly::renderPlotly({
-    input$PCAPlotButton
-    if(input$plotRadios == 'plain'){
-      color = NULL
+    if(input$pcaPlotVar == 'None'){
+      color = "#ff8103"
     }
-    else if(input$plotRadios == 'colored'){
-      req(input$pcaPlotVar)
+    else {
       color = rv$completeData[[input$pcaPlotVar]]
     }
     R2.percentage <- 100 * rv$pcaSummary@R2
@@ -547,40 +541,16 @@ function(input, output, session) {
                 ticklen=4,
                 titlefont=list(size=13))
     
-    plotly::plot_ly(rv$pcScores) %>%
-      plotly::add_trace(
-        type = 'splom',
-        marker = list(
-          size = 7,
-          line = list(
-            width = 1,
-            color = 'rgb(230,230,230)'
-          )
-        ),
-        dimensions = list(
-          list(label=paste('PC 1 (',toString(round(R2.percentage[1],1)),'%)',sep = ''), values=~PC1),
-          list(label=paste('PC 2 (',toString(round(R2.percentage[2],1)),'%)',sep = ''), values=~PC2),
-          list(label=paste('PC 3 (',toString(round(R2.percentage[3],1)),'%)',sep = ''), values=~PC3),
-          list(label=paste('PC 4 (',toString(round(R2.percentage[4],1)),'%)',sep = ''), values=~PC4),
-          list(label=paste('PC 5 (',toString(round(R2.percentage[5],1)),'%)',sep = ''), values=~PC5)
-        ),
-        color = color) %>%  
-      plotly::style(diagonal = list(visible = FALSE)) %>%  
+    plotly::plot_ly(rv$pcScores, x = rv$pcScores[[input$xAxis]], 
+                    y = rv$pcScores[[input$yAxis]],
+                    color = color) %>% 
       plotly::layout(
         legend=list(title=list(text=input$pcaPlotVar)),
         hovermode='closest',
         dragmode= 'select',
         plot_bgcolor='rgba(240,240,240,0.95)',
-        xaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
-        yaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
-        xaxis2=axis,
-        xaxis3=axis,
-        xaxis4=axis,
-        xaxis5=axis,
-        yaxis2=axis,
-        yaxis3=axis,
-        yaxis4=axis,
-        yaxis5=axis
+        xaxis=list(title = input$xAxis, domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
+        yaxis=list(title = input$yAxis, domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4)
       )
   })
       
