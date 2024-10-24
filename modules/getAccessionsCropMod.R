@@ -3,10 +3,10 @@ getAccessionsCropUI <- function(id){
   tagList(
     selectInput(ns("crop"), "Select a crop", c("Crop" = "", crops[2])),
     selectInput(ns("ori"), "Select country(ies)", multiple = TRUE, choices = c("Countries" = "", countries[1]), selected = ""),
-    checkboxInput(ns("avail"), "Get only available accessions", value = TRUE),
-    checkboxInput(ns("coor"), "Get only georeferenced accessions", value = TRUE),
+    checkboxInput(ns("avail"), "Get available accessions", value = TRUE),
+    checkboxInput(ns("coor"), "Get georeferenced accessions", value = TRUE),
     checkboxInput(ns("doi"), "Include DOIs", value = FALSE),
-    checkboxInput(ns("other_id"), "Include Other IDs", value = FALSE)
+    checkboxInput(ns("other_id"), "Include other IDs", value = FALSE)
   )
 }
 
@@ -35,6 +35,7 @@ getAccessionsCropMod <- function(input, output, session, rv){
     #remove columns having all rows empty
     df <- Filter(function(x) !(all(x=="")), df)
     
+    df[["IG"]] <- factor(df[["IG"]])
     df[["PopulationType"]] <- factor(df[["PopulationType"]])
     df[["Country"]] <- factor(df[["Country"]])
     df[["Taxon"]] <- factor(df[["Taxon"]])

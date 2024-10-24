@@ -15,9 +15,9 @@ pcaSummaryMod <- function(input, output, session, rv){
   pc <- reactive({
     # varSel <- input$PCAvar
     req(rv$pca_var, rv$data4pca)
-    rv$dataWCSub <- rv$data4pca %>% select(all_of(rv$pca_var)) ## selected columns of WC data 
+    rv$dataWCSub <- rv$data4pca %>% dplyr::select(all_of(rv$pca_var)) ## selected columns of WC data 
     completeVec <- stats::complete.cases(rv$data4pca[ ,names(rv$dataWCSub)]) 
-    rv$completeData <- rv$data4pca[completeVec, ] 
+    rv$completeData <- rv$data4pca[completeVec, ]
     
     if(!rv$filteredPca & !is.null(rv$clusterDataAll[[1]])){
       Cluster <-  factor(rv$clusterDataAll[[1]]$cluster)

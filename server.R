@@ -2,8 +2,8 @@
 list_of_packages = c('shiny','dplyr','rmarkdown','shinyjs','DT',
                        'ggplot2','leaflet','shinyWidgets',
                        'BiocManager','httr','magrittr','plyr','plotly',
-                       'raster','sp','rgdal','readr','icardaFIGSr',
-                       'terra','purrr','shinydashboard')
+                       'raster','sp','rgdal','readr','icardaFIGSr','d3treeR',
+                       'terra','purrr','shinydashboard','bslib','treemap')
 
 lapply(list_of_packages,
        function(x) if(!require(x,character.only = TRUE)) 
@@ -31,18 +31,29 @@ function(input, output, session) {
   rv <- reactiveValues()
   rv$clustered_all <- FALSE
   rv$clustered_filtered <- FALSE
-  #shinyjs::disable("downloadAcc")
   
-  # create map
+  # create map proxies
   output$map <- renderLeaflet(
-    leaflet() %>%
+    leaflet(options = leafletOptions(zoomControl = FALSE)) %>%
       setView(0, 0, zoom = 2) %>%
+      htmlwidgets::onRender(
+        "function(el, x) {
+          L.control.zoom({
+            position:'bottomleft'
+          }).addTo(this);
+        }") %>%
       addProviderTiles('Esri.WorldGrayCanvas')
   )
   
   output$WCMap <- renderLeaflet(
-    leaflet() %>%
+    leaflet(options = leafletOptions(zoomControl = FALSE)) %>%
       setView(0, 0, zoom = 2) %>%
+      htmlwidgets::onRender(
+        "function(el, x) {
+          L.control.zoom({
+            position:'bottomleft'
+          }).addTo(this);
+        }") %>%
       addProviderTiles('Esri.WorldGrayCanvas')
   )
   
@@ -59,8 +70,14 @@ function(input, output, session) {
   )
   
   output$geoMap <- renderLeaflet(
-    leaflet() %>%
+    leaflet(options = leafletOptions(zoomControl = FALSE)) %>%
       setView(0, 0, zoom = 2) %>%
+      htmlwidgets::onRender(
+        "function(el, x) {
+          L.control.zoom({
+            position:'bottomleft'
+          }).addTo(this);
+        }") %>%
       addProviderTiles('Esri.WorldGrayCanvas')
   )
   
@@ -70,19 +87,17 @@ function(input, output, session) {
       addProviderTiles('Esri.WorldGrayCanvas')
   )
   
+  outputOptions(output, "map", suspendWhenHidden = FALSE)
+  outputOptions(output, "subsetMap", suspendWhenHidden = FALSE)
+  outputOptions(output, "coreMap", suspendWhenHidden = FALSE)
+  outputOptions(output, "geoMap", suspendWhenHidden = FALSE)
+  
   map <- leafletProxy("map")
   WCMap <- leafletProxy("WCMap")
   subsetMap <- leafletProxy("subsetMap")
   mapcluster <- leafletProxy("mapcluster")
   geoMap <- leafletProxy("geoMap")
   coreMap <- leafletProxy("coreMap")
-  
-  observe({
-    if(input$dataSrc == 'extData')
-      hideTab(inputId = "main", target = "accPlot")
-    else
-      showTab(inputId = "main", target = "accPlot")
-  })
   
   #Extract data from ICARDA GRS DB by crop name
   passportDataCrop <- callModule(getAccessionsCropMod, "getAccessionsCrop", rv)
@@ -92,8 +107,7 @@ function(input, output, session) {
   })
   
   observeEvent(input$getAcc,{
-    updateTabsetPanel(session, 'main', selected = 'accResult')
-    #shinyjs::enable("downloadAcc")
+    accordion_panel_open(id="passport_accd", values="accResult", session = session)
   })
   
   #extract accessions based on IG
@@ -114,6 +128,7 @@ function(input, output, session) {
                                      collectionYear = TRUE,
                                      other_id = input$other_id)
     })
+    df[["IG"]] <- factor(df[["IG"]])
     df[["PopulationType"]] <- factor(df[["PopulationType"]])
     df[["Country"]] <- factor(df[["Country"]])
     df[["Taxon"]] <- factor(df[["Taxon"]])
@@ -121,8 +136,7 @@ function(input, output, session) {
   })
   
   observeEvent(input$getAccIG,{
-    updateTabsetPanel(session, 'main', selected = 'accResult')
-    #shinyjs::enable("downloadAcc")
+    accordion_panel_open(id="passport_accd", values="accResult", session = session)
   })
     
   #get uploaded data
@@ -138,31 +152,20 @@ function(input, output, session) {
       rv$datasetInput <- dataUpload()
     }
   })
-  #output: table + map 
-    
-  output$table <- DT::renderDataTable(server = TRUE, {
-    
+  
+  #output: table + map
+  output$table <- DT::renderDataTable({
     if(input$dataSrc == 'byCrop'){
-      #req(datasetInputCrop())
-      DT::datatable(datasetInputCrop(),
-                    rownames = FALSE,
-                    filter = list(position = "top", clear = FALSE), 
-                options = list(pageLength = 5, 
-                               scrollX = TRUE),
-                callback = DT::JS(" //hide column filters for specific columns
-      $.each([2, 3, 6, 7, 8, 9], function(i, v) {
-                                     $('input.form-control').eq(v).hide()
-                                     });"))
+      datasetInputCrop()
     }
-    
     else{
-        
-      DT::datatable(rv$datasetInput,
-                    rownames = FALSE,
-                    options = list(pageLength = 5, 
-                                   scrollX = TRUE))
+      rv$datasetInput
     }
-  })
+  }, server = TRUE, filter = list(position = "top", clear = FALSE), rownames = FALSE,
+  options = list(autoWidth = TRUE, 
+                 columnDefs = list(list(width = '100px', targets = "_all")),
+                 pageLength = 5, scrollX = TRUE)
+)
   
   # update filter dropdowns
   # credit to @mikmart in https://github.com/rstudio/DT/pull/982
@@ -199,7 +202,7 @@ function(input, output, session) {
   
   output$selectUI_1 <- renderUI({
     #freezeReactiveValue(input, "y")
-    selectInput("y", "Select a variable", choices = c("None", names(rv$datasetInput)))
+    selectInput("y", "Select a color variable", choices = c("None", names(rv$datasetInput)))
   })
   
   output$coords <- renderUI({
@@ -224,7 +227,7 @@ function(input, output, session) {
   })
   
   observe({
-    req(rv$datasetInput,input$y, rv$lng, rv$lat)
+    req(rv$datasetInput, input$y, rv$lng, rv$lat)
     mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = input$y)
   })
   
@@ -264,12 +267,7 @@ function(input, output, session) {
   observe({
     if(input$dataSrc!="extData"){
       output$dlButton <- renderUI({
-        dlButton <- list(
-        HTML('<hr>'),
-        h4("Download Data (.csv)"),
-        HTML('<hr>'),
-        downloadButton(outputId="downloadAcc", label="Download", style = 'display: inline-block;'))
-        do.call(tagList, dlButton)
+        downloadButton(outputId="downloadAcc", label="Download", style = 'display: inline-block;')
         })
     }
     else output$dlButton <- renderUI({
@@ -297,7 +295,7 @@ function(input, output, session) {
   })
   
   observeEvent(input$extractWC, {
-    updateTabsetPanel(session, "wcMainPanel", selected = "WCTable")
+    accordion_panel_open(id="climData_accd", values="climDataMap", session = session)
   })
   
   climVars <- reactive({
@@ -305,7 +303,7 @@ function(input, output, session) {
   })
   
   output$selectUI_2 <- renderUI({
-    selectInput("clim_var", "Select a variable", choices = climVars())
+    selectInput("clim_var", "Select a color variable", choices = climVars())
   })
   
   output$WCtable <- DT::renderDataTable(server = TRUE, {
@@ -353,7 +351,7 @@ function(input, output, session) {
         printname <- paste("sumClimVar", climVarSub()[i], sep = "")
         plotname <- paste("histo", climVarSub()[i], sep = "")
         list(verbatimTextOutput(printname),
-             plotly::plotlyOutput(plotname, height = 300)
+             plotly::plotlyOutput(plotname)
         )
       })
       do.call(tagList, unlist(summariesandHists, recursive = FALSE))
@@ -495,7 +493,7 @@ function(input, output, session) {
     pcSummary <- callModule(pcaSummaryMod, "pcaSummary", rv)
     rv$pcaSummary <- pcSummary()
     rv$pcScores <- as.data.frame(rv$pcaSummary@scores)
-    updateTabsetPanel(session, 'pca', selected = 'pcaSummary')
+    accordion_panel_open(id="pca_accd", values="pcaSummary", session = session)
   })
 
   observeEvent(input$PCAPlotButton, {
@@ -525,7 +523,7 @@ function(input, output, session) {
     else if(input$plotRadios == 'colored') {
       
       output$pcaPlotVar <- renderUI({
-        selectInput("pcaPlotVar", label = "Select Variable", choices = names(rv$completeData)) 
+        selectInput("pcaPlotVar", label = "Select a color variable", choices = names(rv$completeData)) 
       }) 
       
       shinyjs::show("pcaPlotVar")
@@ -679,7 +677,7 @@ function(input, output, session) {
       withProgress(message = "Getting Traits ...", {
         rv$traits <- icardaFIGSr::getTraits(rv$crop)
       })
-      updateTabsetPanel(session, 'traitMainPanel', selected = 'traitTable')
+      accordion_panel_open(id="trait_accd", values="traitTable", session = session)
     })
     
     observe({
@@ -702,7 +700,7 @@ function(input, output, session) {
           rv$traitsData[[last_column]] = factor(rv$traitsData[[last_column]])
         }
       })
-      updateTabsetPanel(session, 'traitMainPanel', selected = 'traitDataTable')
+      accordion_panel_open(id="trait_accd", values="traitDataTable", session = session)
     })
     
     output$TraitTbl <- DT::renderDataTable(server = FALSE, {
