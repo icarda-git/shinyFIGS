@@ -358,38 +358,46 @@ function(input, output, session) {
   })
 
   selected_sub <- reactive({
+    req(climVarSub())
     each_var <- map(climVarSub(), ~ filter_var(climaticData()[[.x]], input[[.x]]))
     reduce(each_var, `&`)
   })
     
-    dfSub <- eventReactive(input$slidersButton, {
-      climaticData()[selected_sub(), ]
-    })
+  dfSub <- eventReactive(input$slidersButton, {
+    climaticData()[selected_sub(), ]
+  })
     
-    observe({
-      if(is.null(climVarSub())){
-        removeUI(
-          selector = "#sliders > div", multiple = TRUE
-        )
-      }
+  observe({
+    if(is.null(climVarSub())){
+      removeUI(
+        selector = "#sliders > div", multiple = TRUE
+      )
+      removeUI(
+        selector = "#summaryandHists > div", multiple = TRUE
+      )
+    }
+    else{
       map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
       map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
-    })
+    }
+  })
     
-    observeEvent(input$slidersButton, {
-      map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
-      map(climVarSub(), ~ render_hists(output, dfSub(), .x))
-      map(climVarSub(), ~ render_prints(output, dfSub(), .x))
-      map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
-                  lat = rv$lat, type = "Data Subset")
-    })
+  observeEvent(input$slidersButton, {
+    map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
+    map(climVarSub(), ~ render_hists(output, dfSub(), .x))
+    map(climVarSub(), ~ render_prints(output, dfSub(), .x))
+    map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
+                lat = rv$lat, type = "Data Subset")
+  })
     
-    #reset to initial data
-    observeEvent(input$resetButton, {
-      map(climVarSub(), ~ update_slider(session, climaticData()[, .x], .x))
-      map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
-      map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
-    })
+  #reset to initial data
+  observeEvent(input$resetButton, {
+    map(climVarSub(), ~ update_slider(session, climaticData()[, .x], .x))
+    map(climVarSub(), ~ render_hists(output, climaticData()[, ], .x))
+    map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
+    map_two_dfs(subsetMap, climaticData(), climaticData(), lng = rv$lng,
+                lat = rv$lat, type = "Data Subset")
+  })
   
   output$dataDescription <- renderUI({
     req(dfSub())
@@ -397,6 +405,7 @@ function(input, output, session) {
   })
   
   output$rowsNumber <- renderPrint({
+    req(dfSub())
     print(paste("Number of filtered accessions: ", nrow(dfSub())))
   })
   
