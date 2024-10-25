@@ -24,7 +24,13 @@ coreCollectionMod <- function(input, output, session, rv){
     group <- input$group
     uid <- input$uid
     
-    data4core <- rv$data4core
+    if(group=="PopulationType"){
+      data4core <- rv$data4core %>% filter(PopulationType!="Unknown")
+    }
+    else{
+      data4core <- rv$data4core
+    }
+    
     rownames(data4core) <- data4core[[uid]]
     climate_columns <- search4pattern(c('tavg*', 'tmin*', 'tmax*', 
                                         'prec*', 'bio*', 'srad*', 

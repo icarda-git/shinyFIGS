@@ -10,9 +10,10 @@ extractWCDataMod <- function(input, output, session, rv){
 
   WCdata <- reactive({
     req(rv$datasetInput)
-
+    df_cleaned <- rv$datasetInput %>%
+      filter(PopulationType!="Genetic stock" & PopulationType!="Unreleased breeding material")
     withProgress(message = "Extracting World Clim Data ...", {
-      WCdata <- extractWCdata(rv$datasetInput, long = rv$lng, lat = rv$lat, var = input$var)
+      WCdata <- extractWCdata(df_cleaned, long = rv$lng, lat = rv$lat, var = input$var)
     })
     
     WCdata

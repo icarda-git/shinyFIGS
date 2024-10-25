@@ -228,7 +228,14 @@ function(input, output, session) {
   
   observe({
     req(rv$datasetInput, input$y, rv$lng, rv$lat)
-    mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = input$y)
+    if(input$dataSrc=="extData"){
+      mapAccessions(map, df = rv$datasetInput, long = rv$lng, lat = rv$lat, y = input$y)
+    }
+    else{
+      df_cleaned <- rv$datasetInput %>%
+        filter(PopulationType!="Genetic stock" & PopulationType!="Unreleased breeding material")
+      mapAccessions(map, df = df_cleaned, long = rv$lng, lat = rv$lat, y = input$y)
+    }
   })
   
   # Statistical plot of variables from dataset extracted by crop name
