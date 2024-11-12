@@ -233,7 +233,7 @@ function(input, output, session) {
     }
     else{
       df_cleaned <- rv$datasetInput %>%
-        filter(PopulationType!="Genetic stock" & PopulationType!="Unreleased breeding material")
+        filter(PopulationType!="Genetic stock" & PopulationType!="Unreleased breeding material" & PopulationType!="Research material")
       mapAccessions(map, df = df_cleaned, long = rv$lng, lat = rv$lat, y = input$y)
     }
   })
