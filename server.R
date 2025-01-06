@@ -201,7 +201,7 @@ function(input, output, session) {
   })
   
   output$selectUI_1 <- renderUI({
-    #freezeReactiveValue(input, "y")
+    freezeReactiveValue(input, "y")
     selectInput("y", "Select a color variable", choices = c("None", names(rv$datasetInput)))
   })
   
@@ -297,7 +297,7 @@ function(input, output, session) {
   
   WCdata <- callModule(extractWCDataMod, "extractWCData", rv)
   
-  climaticData <- eventReactive(input$extractWC,{
+  climaticData <- eventReactive(input$extractWC, {
     WCdata()
   })
   
@@ -310,6 +310,7 @@ function(input, output, session) {
   })
   
   output$selectUI_2 <- renderUI({
+    freezeReactiveValue(input, "clim_var")
     selectInput("clim_var", "Select a color variable", choices = climVars())
   })
   
@@ -318,7 +319,7 @@ function(input, output, session) {
                   options = list(pageLength = 5, 
                                  scrollX = TRUE))
   })
-  
+
   observe({
     req(rv$lng, rv$lat, climaticData(), input$clim_var)
     mapAccessions(WCMap, df = climaticData(), long = rv$lng, lat = rv$lat, y = input$clim_var)
