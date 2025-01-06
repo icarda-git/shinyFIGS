@@ -4,6 +4,8 @@ library(shinyWidgets)
 library(treemap)
 library(d3treeR)
 library(bslib)
+library(foreach)
+library(doParallel)
 
 # Load functions
 source(file.path('./functions/functions.R'), local = TRUE)
