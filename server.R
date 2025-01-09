@@ -3,7 +3,7 @@ list_of_packages = c('shiny','dplyr','rmarkdown','shinyjs','DT',
                        'ggplot2','leaflet','shinyWidgets',
                        'BiocManager','httr','magrittr','plyr','plotly',
                        'raster','sp','rgdal','readr','icardaFIGSr','d3treeR',
-                       'terra','purrr','shinydashboard','bslib','treemap')
+                       'terra','purrr','shinydashboard','bslib','treemap','bsicons')
 
 lapply(list_of_packages,
        function(x) if(!require(x,character.only = TRUE)) 
@@ -391,11 +391,17 @@ function(input, output, session) {
   })
     
   observeEvent(input$slidersButton, {
+    validate(
+      need(nrow(dfSub()) != 0, "Selected ranges do not overlap")
+    )
     map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
     map(climVarSub(), ~ render_hists(output, dfSub(), .x))
     map(climVarSub(), ~ render_prints(output, dfSub(), .x))
     map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
                 lat = rv$lat, type = "Data Subset")
+    output$rowsNumber <- renderText({
+      nrow(dfSub())
+    })
   })
     
   #reset to initial data
@@ -405,16 +411,9 @@ function(input, output, session) {
     map(climVarSub(), ~ render_prints(output, climaticData()[, ], .x))
     map_two_dfs(subsetMap, climaticData(), climaticData(), lng = rv$lng,
                 lat = rv$lat, type = "Data Subset")
-  })
-  
-  output$dataDescription <- renderUI({
-    req(dfSub())
-    verbatimTextOutput("rowsNumber")
-  })
-  
-  output$rowsNumber <- renderPrint({
-    req(dfSub())
-    print(paste("Number of filtered accessions: ", nrow(dfSub())))
+    output$rowsNumber <- renderText({
+      nrow(climaticData())
+    })
   })
   
   output$MapDlBtns <- renderUI({

@@ -4,6 +4,7 @@ library(shinyWidgets)
 library(treemap)
 library(d3treeR)
 library(bslib)
+library(bsicons)
 library(foreach)
 library(doParallel)
 
@@ -132,8 +133,15 @@ sidebar_multivar <- layout_sidebar(
     uiOutput("sliders"),
     actionButton("slidersButton", "Filter Data"),
     actionButton("resetButton", "Reset filters"),
-    uiOutput("dataDescription"),
     uiOutput("MapDlBtns")
+  ),
+  layout_column_wrap(
+    fill = FALSE,
+    value_box(
+      title = "Number of accessions in the subset",
+      value = textOutput("rowsNumber"),
+      showcase = bs_icon("funnel-fill", size = "1.5em")
+    )
   ),
   accordion(
     id = "multivar_accd",
