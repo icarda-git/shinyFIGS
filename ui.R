@@ -339,7 +339,7 @@ shinyUI(
       ),
                    conditionalPanel("input.tabs == 2",
                                     navset_card_underline(
-                                      nav_panel("Multivariate Analysis",
+                                      nav_panel("Multivariate Filtering",
                                                 sidebar_multivar
                                                ),
                                       nav_panel("K-means Clustering",

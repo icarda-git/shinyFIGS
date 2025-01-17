@@ -106,7 +106,7 @@ function(input, output, session) {
     passportDataCrop()
   })
   
-  observeEvent(input$getAcc,{
+  observeEvent(datasetInputCrop(),{
     accordion_panel_open(id="passport_accd", values="accResult", session = session)
   })
   
@@ -301,7 +301,7 @@ function(input, output, session) {
     WCdata()
   })
   
-  observeEvent(input$extractWC, {
+  observeEvent(climaticData(), {
     accordion_panel_open(id="climData_accd", values="climDataMap", session = session)
   })
   
@@ -366,13 +366,27 @@ function(input, output, session) {
   })
 
   selected_sub <- reactive({
-    req(climVarSub())
-    each_var <- map(climVarSub(), ~ filter_var(climaticData()[[.x]], input[[.x]]))
-    reduce(each_var, `&`)
+    #req(climVarSub())
+    if(is.null(climaticData())){
+      showNotification("Please extract first climate data!", type = "warning", duration = 5)
+      return()
+    }
+    else{
+      each_var <- map(climVarSub(), ~ filter_var(climaticData()[[.x]], input[[.x]]))
+      return(reduce(each_var, `&`))
+    }
   })
     
   dfSub <- eventReactive(input$slidersButton, {
-    climaticData()[selected_sub(), ]
+    if(is.null(climaticData())){
+      showNotification("Please extract first climate data!", type = "warning", duration = 5)
+    }
+    else if(is.null(climVarSub())){
+      showNotification("Please select at least two variables before filtering!", type = "warning", duration = 5)
+    }
+    else{
+      climaticData()[selected_sub(), ]
+    }
   })
     
   observe({
@@ -391,17 +405,23 @@ function(input, output, session) {
   })
     
   observeEvent(input$slidersButton, {
-    validate(
-      need(nrow(dfSub()) != 0, "Selected ranges do not overlap")
-    )
-    map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
-    map(climVarSub(), ~ render_hists(output, dfSub(), .x))
-    map(climVarSub(), ~ render_prints(output, dfSub(), .x))
-    map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
-                lat = rv$lat, type = "Data Subset")
-    output$rowsNumber <- renderText({
-      nrow(dfSub())
-    })
+    if(is.null(dfSub())){
+      showNotification("Please extract first climate data!", type = "warning", duration = 5)
+    }
+    
+    else{
+      validate(
+        need(nrow(dfSub()) != 0, "Selected ranges do not overlap")
+      )
+      map(climVarSub(), ~ update_slider(session, dfSub()[, .x], .x))
+      map(climVarSub(), ~ render_hists(output, dfSub(), .x))
+      map(climVarSub(), ~ render_prints(output, dfSub(), .x))
+      map_two_dfs(subsetMap, climaticData(), dfSub(), lng = rv$lng,
+                  lat = rv$lat, type = "Data Subset")
+      output$rowsNumber <- renderText({
+        nrow(dfSub())
+      })
+    }
   })
     
   #reset to initial data
@@ -445,42 +465,49 @@ function(input, output, session) {
       rv$clustered_filtered <- TRUE
     }
     
-    dataKMx <- rv$data4cluster %>% dplyr::select(all_of(input$kmx))
-    
-    rv$data4cluster <- rv$data4cluster[complete.cases(dataKMx), ]
-    dataKMx <- dataKMx[complete.cases(dataKMx),]
-    rv$dataKMx <- scale(dataKMx)
-    
-    if(input$kmDataSrc == "allDataKm"){
-      rv$clusterDataAll <- cluster.res()
+    if(is.null(input$kmx)){
+      showNotification("Please select at least one climate variable!", type = "warning", duration = 5)
     }
-    else if (input$kmDataSrc == "filtDataKm"){
-      rv$clusterDataFilt <- cluster.res()
+    
+    else{
+      dataKMx <- rv$data4cluster %>% dplyr::select(all_of(input$kmx))
+      
+      rv$data4cluster <- rv$data4cluster[complete.cases(dataKMx), ]
+      dataKMx <- dataKMx[complete.cases(dataKMx),]
+      rv$dataKMx <- scale(dataKMx)
+      
+      if(input$kmDataSrc == "allDataKm"){
+        rv$clusterDataAll <- cluster.res()
+      }
+      else if (input$kmDataSrc == "filtDataKm"){
+        rv$clusterDataFilt <- cluster.res()
+      }
+      
+      output$totkm <- renderPrint({
+        req(cluster.res())
+        paste("tot.withinss: ", cluster.res()[[1]]$tot.withinss,
+              " betweenss: ", cluster.res()[[1]]$betweenss)
+      })
+      
+      pal <- leaflet::colorFactor(
+        palette = "viridis",
+        domain = cluster.res()[[2]]$cluster
+      )
+      
+      mapcluster %>% clearMarkers() %>%
+        clearControls() %>% removeLayersControl() %>%
+        leaflet::addCircleMarkers(data = cluster.res()[[2]],
+                                  lng = cluster.res()[[2]][[rv$lng]],
+                                  lat = cluster.res()[[2]][[rv$lat]],
+                                  color = ~pal(cluster.res()[[2]][["cluster"]]),
+                                  radius = 2,
+                                  fill = TRUE,
+                                  fillColor = ~pal(cluster.res()[[2]][["cluster"]]),
+                                  label = ~cluster.res()[[2]][["cluster"]],
+                                  fillOpacity = 1, weight = 0.1) %>%
+        leaflet::addLegend(pal = pal, values = cluster.res()[[2]][["cluster"]], opacity = 1,  title = 'Cluster')
     }
-  
-    output$totkm <- renderPrint({
-      req(cluster.res())
-      paste("tot.withinss: ", cluster.res()[[1]]$tot.withinss,
-            " betweenss: ", cluster.res()[[1]]$betweenss)
-    })
     
-    pal <- leaflet::colorFactor(
-      palette = "viridis",
-      domain = cluster.res()[[2]]$cluster
-    )
-    
-    mapcluster %>% clearMarkers() %>%
-      clearControls() %>% removeLayersControl() %>%
-      leaflet::addCircleMarkers(data = cluster.res()[[2]],
-                                lng = cluster.res()[[2]][[rv$lng]],
-                                lat = cluster.res()[[2]][[rv$lat]],
-                                color = ~pal(cluster.res()[[2]][["cluster"]]),
-                                radius = 2,
-                                fill = TRUE,
-                                fillColor = ~pal(cluster.res()[[2]][["cluster"]]),
-                                label = ~cluster.res()[[2]][["cluster"]],
-                                fillOpacity = 1, weight = 0.1) %>%
-      leaflet::addLegend(pal = pal, values = cluster.res()[[2]][["cluster"]], opacity = 1,  title = 'Cluster')
   })
   
   output$downloadClusterData <- downloadHandler(
@@ -506,10 +533,16 @@ function(input, output, session) {
       rv$filteredPca <- TRUE
     }
     rv$pca_var <- input$pca_var
-    pcSummary <- callModule(pcaSummaryMod, "pcaSummary", rv)
-    rv$pcaSummary <- pcSummary()
-    rv$pcScores <- as.data.frame(rv$pcaSummary@scores)
-    accordion_panel_open(id="pca_accd", values="pcaSummary", session = session)
+    
+    if(is.null(rv$pca_var)){
+      showNotification("Please select at least one climate variable!", type = "warning", duration = 5)
+    }
+    else{
+      pcSummary <- callModule(pcaSummaryMod, "pcaSummary", rv)
+      rv$pcaSummary <- pcSummary()
+      rv$pcScores <- as.data.frame(rv$pcaSummary@scores)
+      accordion_panel_open(id="pca_accd", values="pcaSummary", session = session)
+    }
   })
   
   output$pc_x_axis <- renderUI({
